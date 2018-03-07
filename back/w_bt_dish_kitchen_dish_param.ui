@@ -1,0 +1,673 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>w_bt_dish_kitchen_dish_param</class>
+ <widget class="QDialog" name="w_bt_dish_kitchen_dish_param">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>524</width>
+    <height>433</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="5" column="0">
+      <widget class="QCheckBox" name="kt_checkBox_title">
+       <property name="text">
+        <string>名称</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="6">
+      <widget class="lds_lineedit" name="kt_lineEdit_vch_operid_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="3">
+      <widget class="QCheckBox" name="kt_checkBox_dt_cur">
+       <property name="text">
+        <string>打印时间</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1" colspan="2">
+      <widget class="QLineEdit" name="kt_spinBox_num_num_width">
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="3">
+      <widget class="QCheckBox" name="kt_checkBox_vch_memo">
+       <property name="text">
+        <string>开台备注</string>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="3">
+      <widget class="lds_ComboBox" name="kt_spinBox_num_price_row"/>
+     </item>
+     <item row="9" column="0">
+      <widget class="QCheckBox" name="kt_checkBox_num_price">
+       <property name="text">
+        <string>价格</string>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="3">
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>厨打间隔</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="3">
+      <widget class="lds_ComboBox" name="kt_spinBox_unit_row"/>
+     </item>
+     <item row="9" column="1" colspan="2">
+      <widget class="QLineEdit" name="kt_spinBox_num_price_width">
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="3">
+      <widget class="lds_ComboBox" name="kt_spinBox_num_num_row"/>
+     </item>
+     <item row="8" column="0">
+      <widget class="QCheckBox" name="kt_checkBox_unit">
+       <property name="text">
+        <string>单位</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="4">
+      <widget class="lds_lineedit" name="kt_checkBox_vch_memo_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="0" colspan="3">
+      <widget class="QCheckBox" name="kt_checkBox_ch_rowno">
+       <property name="text">
+        <string>本单序号</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QCheckBox" name="kt_checkBox_vch_dishname">
+       <property name="text">
+        <string>品名</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1" colspan="2">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>字符宽</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0" colspan="7">
+      <widget class="QLabel" name="label_div_1">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>2</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>2</height>
+        </size>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="outer_stylesheet" stdset="0">
+        <string>line_div_h</string>
+       </property>
+      </widget>
+     </item>
+     <item row="11" column="0" colspan="3">
+      <widget class="QCheckBox" name="kt_checkBox_ch_tailtotal">
+       <property name="text">
+        <string>打印合计</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="5">
+      <widget class="QCheckBox" name="kt_checkBox_int_person">
+       <property name="text">
+        <string>人数</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="4">
+      <widget class="lds_lineedit" name="kt_lineEdit_content_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1" colspan="2">
+      <widget class="QLineEdit" name="kt_spinBox_vch_dishname_width">
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="3">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>行</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="5">
+      <widget class="QCheckBoxLongPress" name="kt_checkBox_vch_operid">
+       <property name="text">
+        <string>点菜人</string>
+       </property>
+      </widget>
+     </item>
+     <item row="11" column="3">
+      <widget class="lds_lineedit" name="kt_checkBox_ch_tailtotal_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="5">
+      <widget class="lds_ComboBox" name="kt_fmt_table_fmts"/>
+     </item>
+     <item row="7" column="5">
+      <widget class="QLineEdit" name="kt_fmt_serial_no_desc"/>
+     </item>
+     <item row="8" column="1" colspan="2">
+      <widget class="QLineEdit" name="kt_spinBox_unit_width">
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="0" colspan="7">
+      <widget class="QCheckBox" name="kt_checkBox_ktitle2shopname">
+       <property name="text">
+        <string>厨打单替换为店名</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="4">
+      <widget class="lds_lineedit" name="kt_lineEdit_dt_cur_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="6">
+      <widget class="lds_lineedit" name="kt_lineEdit_int_person_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="3">
+      <widget class="QCheckBox" name="kt_checkBox_ch_billno">
+       <property name="text">
+        <string>开台单号</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QCheckBox" name="kt_checkBox_num_num">
+       <property name="text">
+        <string>数量</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="4">
+      <widget class="lds_lineedit" name="kt_lineEdit_ch_billno_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="3">
+      <widget class="lds_ComboBox" name="kt_spinBox_vch_dishname_row"/>
+     </item>
+     <item row="0" column="0" colspan="4">
+      <widget class="QCheckBox" name="kt_checkBox_vch_plan_id">
+       <property name="text">
+        <string>打印厨打方案编号</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="5" colspan="2">
+      <widget class="lds_ComboBox" name="kt_comboBox_vch_language"/>
+     </item>
+     <item row="0" column="4">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>切换语言</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1" colspan="2">
+      <widget class="lds_lineedit" name="kt_lineEdit_ch_serialno_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1" colspan="2">
+      <widget class="lds_lineedit" name="kt_lineEdit_dt_operdate_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1" colspan="2">
+      <widget class="lds_lineedit" name="kt_lineEdit_ch_tableno_scale">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>51</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>51</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border:1px solid orangered;color:orangered;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="5">
+      <widget class="lds_ComboBox" name="kt_fmt_vch_operid"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QCheckBoxLongPress" name="kt_checkBox_ch_tableno">
+       <property name="text">
+        <string>餐桌名称</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QCheckBox" name="kt_checkBox_dt_operdate">
+       <property name="text">
+        <string>点菜时间</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QCheckBoxLongPress" name="kt_checkBox_ch_serialno">
+       <property name="text">
+        <string>流水号</string>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="4" colspan="2">
+      <widget class="QLineEdit" name="kt_spinBox_vtimeout"/>
+     </item>
+     <item row="6" column="6">
+      <widget class="QPushButton" name="pushButton_hide_ExSet">
+       <property name="styleSheet">
+        <string notr="true">border:1px solid black;
+color:black;
+background:white;</string>
+       </property>
+       <property name="text">
+        <string>关闭</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="lds_checkbox_unwrap" name="kt_checkBox_kitchen_start">
+       <property name="text">
+        <string>启动厨打服务器</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_kitchen_ip">
+       <property name="text">
+        <string>TextLabel</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="lds_toolbar_button" name="pushButton_ok">
+       <property name="text">
+        <string>确定</string>
+       </property>
+       <property name="outer_stylesheet" stdset="0">
+        <string>pushbutton</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="lds_toolbar_button" name="pushButton_cancel">
+       <property name="text">
+        <string>取消</string>
+       </property>
+       <property name="outer_stylesheet" stdset="0">
+        <string>pushbutton</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>lds_toolbar_button</class>
+   <extends>QPushButton</extends>
+   <header>lds_toolbar_button.h</header>
+  </customwidget>
+  <customwidget>
+   <class>lds_ComboBox</class>
+   <extends>QComboBox</extends>
+   <header>lds_combobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>lds_lineedit</class>
+   <extends>QLineEdit</extends>
+   <header>lds_lineedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QCheckBoxLongPress</class>
+   <extends>QCheckBox</extends>
+   <header>qcheckboxlongpress.h</header>
+  </customwidget>
+  <customwidget>
+   <class>lds_checkbox_unwrap</class>
+   <extends>QCheckBox</extends>
+   <header>lds_checkbox_unwrap.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>pushButton_ok</tabstop>
+  <tabstop>pushButton_cancel</tabstop>
+  <tabstop>kt_checkBox_ch_tableno</tabstop>
+  <tabstop>kt_lineEdit_int_person_scale</tabstop>
+  <tabstop>kt_lineEdit_dt_cur_scale</tabstop>
+  <tabstop>kt_lineEdit_ch_tableno_scale</tabstop>
+  <tabstop>kt_spinBox_unit_width</tabstop>
+  <tabstop>kt_checkBox_ktitle2shopname</tabstop>
+  <tabstop>kt_lineEdit_ch_billno_scale</tabstop>
+  <tabstop>kt_spinBox_vch_dishname_row</tabstop>
+  <tabstop>kt_checkBox_num_num</tabstop>
+  <tabstop>kt_checkBox_ch_billno</tabstop>
+  <tabstop>kt_checkBox_title</tabstop>
+  <tabstop>kt_checkBox_dt_cur</tabstop>
+  <tabstop>kt_lineEdit_ch_serialno_scale</tabstop>
+  <tabstop>kt_lineEdit_vch_operid_scale</tabstop>
+  <tabstop>kt_checkBox_vch_memo</tabstop>
+  <tabstop>kt_checkBox_num_price</tabstop>
+  <tabstop>kt_spinBox_num_price_row</tabstop>
+  <tabstop>kt_spinBox_vtimeout</tabstop>
+  <tabstop>kt_checkBox_dt_operdate</tabstop>
+  <tabstop>kt_spinBox_num_num_width</tabstop>
+  <tabstop>kt_spinBox_num_price_width</tabstop>
+  <tabstop>kt_spinBox_num_num_row</tabstop>
+  <tabstop>kt_checkBox_unit</tabstop>
+  <tabstop>kt_spinBox_unit_row</tabstop>
+  <tabstop>kt_checkBox_vch_memo_scale</tabstop>
+  <tabstop>kt_checkBox_ch_rowno</tabstop>
+  <tabstop>kt_checkBox_vch_dishname</tabstop>
+  <tabstop>kt_checkBox_ch_tailtotal</tabstop>
+  <tabstop>kt_checkBox_int_person</tabstop>
+  <tabstop>kt_checkBox_ch_serialno</tabstop>
+  <tabstop>kt_spinBox_vch_dishname_width</tabstop>
+  <tabstop>kt_lineEdit_content_scale</tabstop>
+  <tabstop>kt_lineEdit_dt_operdate_scale</tabstop>
+  <tabstop>kt_checkBox_vch_operid</tabstop>
+  <tabstop>kt_checkBox_ch_tailtotal_scale</tabstop>
+  <tabstop>kt_fmt_table_fmts</tabstop>
+  <tabstop>kt_fmt_serial_no_desc</tabstop>
+  <tabstop>kt_checkBox_kitchen_start</tabstop>
+  <tabstop>kt_checkBox_vch_plan_id</tabstop>
+  <tabstop>kt_comboBox_vch_language</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

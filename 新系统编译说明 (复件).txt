@@ -1,0 +1,5 @@
+192,168.1.187
+cz
+123321
+ /opt/qt-hddlinuxqt4/bin/qmake
+make -4

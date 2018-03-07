@@ -1,0 +1,139 @@
+1、获取门店下未确定订单
+GET
+测试地址: http://192.168.1.81/dishREST/queryUserOrders-rest
+正式地址: http://115.28.155.165/qryqs/dishREST/queryUserOrders-rest
+head terminalCode: FA1101
+head state: 1  // 订单状态 : 1=已下单,2=已确认,3=已支付
+
+返回结果
+200
+{
+  "code": "200",
+  "data": [{
+    "sn": "22", // 订单编号
+    "tableNo": "1001", // 桌号
+    "orgCode": "0000000000000003", // 门店编号
+    "mount": 469.01, // 总金额
+    "state": "1",  // 订单状态 : 1=已下单,2=已确认,3=已支付
+    "date": "2018-01-31 14:40:29.0", // 订单日期
+    "unPayMount": 469.01 // 未支付金额
+  }, {
+    "sn": "37",
+    "tableNo": "1001",
+    "orgCode": "0000000000000003",
+    "mount": 68.0,
+    "state": "1",
+    "date": "2018-02-07 17:04:35.0",
+    "unPayMount": 68.0
+  }]
+}
+
+550
+{
+  "code": "-101",
+  "message": "终端编号未激活"
+}
+
+2、获取订单明细
+GET
+测试地址: http://192.168.1.81/dishREST/getOrderDishInfo-rest
+正式地址: http://115.28.155.165/qryqs/dishREST/queryUserOrders-rest
+head terminalCode: 
+head orderSn: 36
+
+返回结果
+200
+{
+  "code": "200",
+  "data": [{
+    "sn": "2293",
+    "dishNo": "01005",  // 菜品编号
+    "dishName": "666",  // 菜品名称
+    "number": 3,        // 数量
+    "price": 0.1,       // 单价
+    "tableNo": "1001",  // 桌台号
+    "zf": null,         // 做法
+    "tc": null,         // 套餐替换
+    "typeNo": "01",     // 大类编号
+    "mount": 0.3,       // 总价
+    "orderSn": "37"    // 订单编号
+  }]
+}
+550
+{
+  "code": "-701",
+  "message": "订单不存在"
+}
+
+
+
+3、确认订单
+GET
+测试地址: http://192.168.1.81/dishREST/commitOrderDishInfoByOrderNo-rest
+正式地址: http://115.28.155.165/qryqs/dishREST/queryUserOrders-rest
+head terminalCode: 
+head orderSn: 36
+
+返回结果
+200
+{
+  "code": "200",
+  "message": "确认成功"
+}
+550
+{
+  "code": "-702",
+  "message": "订单已经确认"
+}
+
+
+
+4、取消订单
+GET
+测试地址: http://192.168.1.81/dishREST/cannelOrderDishInfoByOrderNo-rest
+正式地址: http://115.28.155.165/qryqs/dishREST/queryUserOrders-rest
+head terminalCode: 
+head orderSn: 36
+
+返回结果
+200
+{
+  "code": "200",
+  "message": "取消成功"
+}
+550
+{
+  "code": "-703",
+  "message": "订单已经支付"
+}
+
+
+5、获取订单支付详情
+GET
+测试地址: http://192.168.1.81/dishREST/getOrderDishInfoByOrderNo-rest
+正式地址: http://115.28.155.165/qryqs/dishREST/queryUserOrders-rest
+head terminalCode: FA1101
+head orderSn: 36
+
+返回结果
+200
+{
+  "code": "200",
+  "data": {
+    "sn": "22", // 订单编号
+    "tableNo": "1001", // 桌号
+    "orgCode": "0000000000000003", // 门店编号
+    "mount": 469.01, // 总金额
+    "state": "1",  // 订单状态 : 1=已下单,2=已确认,3=已支付
+    "date": "2018-01-31 14:40:29.0", // 订单日期
+    "unPayMount": 469.01 // 未支付金额
+  }
+}
+
+550
+{
+  "code": "-101",
+  "message": "终端编号未激活"
+}
+
+

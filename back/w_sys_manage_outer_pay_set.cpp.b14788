@@ -1,0 +1,1288 @@
+#include "w_sys_manage_outer_pay_set.h"
+#include "ui_w_sys_manage_outer_pay_set.h"
+#include "ftableview_delegate.h"
+#include "ftableview_standmodel_sql_none.h"
+#include "wxmanager.h"
+#include "ldslight.h"
+#include "public_printby_ch_billno.h"
+#include "lds_menu.h"
+#include "lds.h"
+#include "lds_messagebox.h"
+#include "lds_dialog_input.h"
+#include "w_sys_manage_sqlcopy.h"
+#include "public_sql.h"
+#include "n_func.h"
+
+#include <QSqlError>
+#include "w_sys_manage_businessdataclear.h"
+#include "w_sys_manage_outer_pay_set_sql.h"
+#include "printer_pos.h"
+#include "w_scr_dish.h"
+#include <QFile>
+#include <QTextEdit>
+
+QList<QPair<QString, QString> > w_sys_manage_outer_pay_set::languagelist;
+
+w_sys_manage_outer_pay_set::w_sys_manage_outer_pay_set(QWidget *parent) :
+    lds_Dialog(parent),
+    ui(new Ui::w_sys_manage_outer_pay_set)
+{
+    ui->setupUi(this);
+    //1
+    backlist_model = new ftableview_standmodel_sql_none;
+    backlist_model->appendColumn(QList<QStandardItem *>()
+                                 << new QStandardItem << new QStandardItem
+                                 );
+    backlist_model->item(0)->setData("anyvalue", Qt::UserRole+1);
+    backlist_model->item(1)->setData("anyvalue", Qt::UserRole+1);
+    ftableview_delegate *d = new ftableview_delegate(ui->tableView_list);
+    d->keepConnect(ui->tableView_list);
+    d->border_top_bottom = 2;
+    d->indexisEmptystillDraw = true;
+    ui->tableView_list->setProperty("outer_stylesheet", "tableView_type_pop");
+
+    ui->tableView_list->setModel(backlist_model);
+    ui->tableView_list->setItemDelegate(d);
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+    ui->tableView_list->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+#else
+    ui->tableView_list->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
+#endif
+    ui->tableView_list->verticalHeader()->setDefaultSectionSize(50);
+    //3
+    ui->tableView_list->setCurrentIndex(backlist_model->index(0, 0));
+    ui->comboBox_font_size->hide();
+    ui->label_font_size->hide();
+
+    ui->stackedWidget_2->setCurrentIndex(0);
+    ui->stackedWidget->setCurrentIndex(0);
+    retranslateView();
+
+
+    toupdateSection(ui->tableView_list->currentIndex());
+    connect(ui->pushButton_ok, SIGNAL(clicked()),this,SLOT(took()));
+    connect(ui->pushButton_cancel, SIGNAL(clicked()),this,SLOT(tocancel()));
+    connect(ui->tableView_list,SIGNAL(clicked(QModelIndex)),this,SLOT(toupdateSection(QModelIndex)));
+    connect(ui->comboBox_blotout_round,SIGNAL(activated(int)),this,SLOT(toshowround(int)));
+
+    connect(ui->pushButton_language_app,SIGNAL(clicked()),this,SLOT(tolanguage_app()));
+    connect(ui->pushButton_skin_app,SIGNAL(clicked()),this,SLOT(toskinapp()));
+    connect(ui->pushButton_function, SIGNAL(clicked()),this,SLOT(tofunction()));
+    connect(ui->pushButton_function_2, SIGNAL(clicked()),this,SLOT(tofunction_2()));
+    connect(ui->pushButton_function_3, SIGNAL(clicked()),this,SLOT(tofunction_3()));
+    connect(ui->pushButton_function_4, SIGNAL(clicked()),this,SLOT(tofunction_4()));
+    connect(ui->pushButton_function_5, SIGNAL(clicked()),this,SLOT(tofunction_5()));
+    connect(ui->pushButton_function_6, SIGNAL(clicked()),this,SLOT(tofunction_6()));
+    connect(ui->pushButton_function_7, SIGNAL(clicked()),this,SLOT(tofunction_7()));
+    connect(ui->pushButton_function_8, SIGNAL(clicked()),this,SLOT(tofunction_8()));
+    connect(ui->pushButton_function_9, SIGNAL(clicked()),this,SLOT(tofunction_9()));
+    connect(ui->pushButton_function_10, SIGNAL(clicked()),this,SLOT(tofunction_10()));
+
+    connect(ui->radioButton_upload1, SIGNAL(signal_checked()), this, SLOT(touncheck()));
+    connect(ui->radioButton_upload2, SIGNAL(signal_checked()), this, SLOT(touncheck()));
+    connect(ui->radioButton_upload3, SIGNAL(signal_checked()), this, SLOT(touncheck()));
+
+    connect(ui->radioButton_upload1, SIGNAL(signal_checked()),this, SLOT(toupload1()));
+    connect(ui->radioButton_upload2, SIGNAL(signal_checked()),this, SLOT(toupload2()));
+    connect(ui->radioButton_upload3, SIGNAL(signal_checked()),this, SLOT(toupload3()));
+    connect(ui->radioButton_upload4, SIGNAL(signal_checked()),this, SLOT(toupload4()));
+
+    connect(ui->lineEdit_upload_awake, SIGNAL(textChanged(QString)),this,SLOT(touploadaware(QString)));
+
+    old_language = lds::get_sys_language();
+}
+
+w_sys_manage_outer_pay_set::~w_sys_manage_outer_pay_set()
+{
+    delete ui;
+}
+
+void w_sys_manage_outer_pay_set::dataCheck(QWidget *parent, bool ispop)
+{
+    lds_query::tran_saction();
+    qlonglong errcount = 0;
+    lds_query query;
+    QStringList content;
+    QStringList ch_payno_list;
+    QStringList ch_billno_list;
+    qlonglong  max_int_flowid;
+    //1
+    query.exec("select count(0) from cey_u_checkout_master where ch_billno = '' or ch_tableno = '' ");
+    if(query.next()){
+        errcount += query.recordValue(0).toLongLong();
+        if(!query.exec("delete from cey_u_checkout_master where ch_billno = '' or ch_tableno = '' ")){
+            goto failure;
+        }
+    }
+    //2
+    query.exec("select count(0) from cey_u_orderdish where ch_billno = '' or ch_tableno = '' ");
+    if(query.next()){
+        errcount += query.recordValue(0).toLongLong();
+        if(!query.exec("delete from cey_u_orderdish where ch_billno = '' or ch_tableno = '' ")){
+            goto failure;
+        }
+    }
+    //3
+    query.exec("select count(0) from cey_u_master where ch_billno = '' ");
+    if(query.next()){
+        errcount += query.recordValue(0).toLongLong();
+        if(!query.exec("delete from cey_u_master where ch_billno = '' ")){
+            goto failure;
+        }
+    }
+    //4
+    query.exec("select count(0) from cey_u_checkout_detail where ch_paymodeno = '' ");
+    if(query.next()){
+        errcount += query.recordValue(0).toLongLong();
+        if(!query.exec("delete from cey_u_checkout_detail where ch_paymodeno = '' ")){
+            goto failure;
+        }
+    }
+    //6
+    query.exec("select count(0) from t_m_hang_balance where isnull(num_remain)");
+    if(query.next()){
+        errcount += query.recordValue(0).toLongLong();
+        if(!query.exec("update t_m_hang_balance set num_remain= num_pay where isnull(num_remain) ")){
+            goto failure;
+        }
+    }
+    //    7.
+    query.exec("select count(0) from cey_u_table where  (ch_order_state = 0 or ch_order_state = 1 ) and ch_billno like '%,%' ");
+    if(query.next()) {
+        errcount += query.recordValue(0).toLongLong();
+        if(!query.exec("delete  from cey_u_table where (ch_order_state = 0 or ch_order_state = 1 ) and ch_billno like '%,%' ")){
+            goto failure;
+        }
+    }
+
+    query.exec("select count(0) from cey_u_master where  ch_billno like '%,%' ");
+    if(query.next()) {
+        errcount += query.recordValue(0).toLongLong();
+        if(!query.exec("delete  from cey_u_master where ch_billno like '%,%' ")){
+            goto failure;
+        }
+    }
+
+    ch_payno_list.clear();
+    query.exec(
+                " select (t2.p), (t3.p), t3.ch_payno from "
+                " (Select a.num_payamount as p, a.ch_payno from cey_u_checkout_detail a, cey_u_checkout_master b, cey_bt_paymode c WHERE a.ch_payno = b.ch_payno and b.ch_state = 'Y' and a.ch_paymodeno = c.ch_paymodeno and b.dt_operdate > '2016-10-19 00:00:00' and b.dt_operdate <='2016-10-19 23:59:59') t3"
+
+                " left join ( select sum(amount - discount - present) as p, ch_payno from (SELECT b.ch_payno, a.ch_dishno, c.vch_dishname,   c.ch_unitno,    (a.num_num - a.num_back) as 'num',  ((a.num_num - a.num_back) * a.num_price + a.num_price_add) as 'amount',  ((a.num_num - a.num_back) * a.num_price + a.num_price_add) * (1 - a.int_discount * 0.01) as 'discount',  case a.ch_presentflag when 'Y' then (((a.num_num - a.num_back) * a.num_price + a.num_price_add) * a.int_discount * 0.01) else 0 end as 'present' , b.vch_operID as 'vch_operID', c.ch_dish_typeno as 'typeno', b.dt_operdate as 'dt_operdate', a.vch_operID as 'vch_order', a.dt_operdate as 'dt_order' FROM cey_u_orderdish a,cey_u_checkout_master b,cey_bt_dish c WHERE(a.ch_payno = b.ch_payno)and(b.ch_state = 'Y')and(a.ch_dishno = c.ch_dishno)and(a.num_num - a.num_back <> 0)and(b.dt_operdate > '2016-10-19 00:00::00' and b.dt_operdate <='2016-10-19 23:59::59' and ''=''))t group by ch_payno) t2"
+
+                " on t2.ch_payno = t3.ch_payno  where isnull(t2.p)");
+    while(query.next()) {
+        ch_payno_list.append(query.recordValue("ch_payno").toString());
+    }
+    foreach(const QString &p, ch_payno_list) {
+        query.exec(QString("delete from cey_u_checkout_detail where ch_payno = '%1'  ").arg(p));
+        query.exec(QString("delete from cey_u_checkout_master where ch_payno = '%1'  ").arg(p));
+    }
+    errcount += ch_payno_list.count();
+
+
+    //清除业务数据后，正常打印厨显退菜单的情况
+//    query.exec("select max(int_flowid) from cey_u_orderdish ");
+//    query.next();
+//    max_int_flowid = query.recordValue(0).toLongLong();
+//    query.exec(QString("select count(int_flowid) from cey_u_orderdish_log where int_orderflow > %1").arg(max_int_flowid));
+//    query.next();
+//    errcount += query.recordValue(0).toLongLong();
+//    query.exec(QString("delete from cey_u_orderdish_log where int_orderflow > %1 ").arg(max_int_flowid));
+
+    ch_billno_list.clear();
+    query.exec("select ch_billno from (select count(0) as count, ch_billno, group_concat(ch_payno) as pays from cey_u_checkout_master where ch_state = 'Y' group by ch_billno ) t where t.count > 1;");
+    while(query.next()) {
+        errcount ++;
+        QString ch_billno = query.recordValue("ch_billno").toString();
+        ch_billno_list.append(ch_billno);
+    }
+    ch_payno_list.clear();
+    foreach(const QString &ch_billno, ch_billno_list) {
+        query.exec(QString("select ch_payno from cey_u_checkout_master where ch_billno = '%1' and ch_state = 'Y'  order by ch_payno asc").arg(ch_billno));
+        while(query.next())
+            ch_payno_list.append(query.recordValue("ch_payno").toString());
+        if(!ch_payno_list.isEmpty())
+            ch_payno_list.removeLast();
+    }
+    foreach(const QString &ch_payno, ch_payno_list) {
+        query.exec(QString("delete from cey_u_checkout_master where ch_payno = '%1' ").arg(ch_payno));
+        query.exec(QString("delete from cey_u_checkout_detail where ch_payno = '%1' ").arg(ch_payno));
+    }
+
+    query.exec("select count(0) from cey_u_checkout_master where ifnull(ch_payno,'') ='' ");
+    query.next();
+    if(query.recordValue(0).toInt()) {
+        errcount += query.recordValue(0).toInt();
+        query.exec("delete from cey_u_checkout_master where ifnull(ch_payno, '') = '' ");
+    }
+    query.exec("select count(0) from cey_u_checkout_detail where ifnull(ch_payno,'') ='' ");
+    query.next();
+    if(query.recordValue(0).toInt()) {
+        errcount += query.recordValue(0).toInt();
+        query.exec("delete from cey_u_checkout_detail where ifnull(ch_payno, '') = '' ");
+    }
+
+    query.exec("select count(0) from t_m_curamount where vch_memberno = '' ");
+    query.next();
+    errcount += query.recordValue(0).toInt();
+    query.exec("delete from t_m_curamount where vch_memberno = '' ");
+
+
+    if(errcount > 0){
+        lds_query::com_mit();
+        if(ispop)lds_messagebox::information(parent, tr("数据校验"), tr("成功清除了一些脏数据总共:") + QString::number(errcount));
+        return;
+    }
+
+    query.exec(
+                "  update "
+                "   cey_bt_table a, "
+
+                "  (select a.ch_tableno, vch_tablename, max(b.ch_billno) as ch_billnos, (case group_concat(ifnull(b.ch_order_state,'0' )) when '0' then 'N' else 'Y' end ) ch_lockflags  from cey_bt_table a left join cey_u_table b "
+                "  on a.ch_tableno = b.ch_tableno and (b.ch_order_state= '1' or b.ch_order_state= '0')  where b.ch_billno = '%1' group by a.ch_tableno) b"
+
+                " set ch_billno = b.ch_billnos, ch_lockflag = b.ch_lockflags where a.ch_tableno = b.ch_tableno;"
+                );
+failure:
+    lds_query::roll_back();
+    if(errcount > 0){
+        if(ispop)lds_messagebox::information(parent, tr("数据校验"), tr("清除失败"));
+    } else {
+        if(ispop)lds_messagebox::information(parent, tr("数据校验"), tr("没有需要校对的数据"));
+    }
+}
+
+void w_sys_manage_outer_pay_set::addLanguageList(QComboBox *com)
+{
+    QList<QPair<QString, QString> >& list = w_sys_manage_outer_pay_set::getLanguagelist();
+    foreach(QPair<QString, QString> &p, list) {
+        com->addItem(p.first, p.second);
+    }
+}
+
+QList<QPair<QString, QString> > &w_sys_manage_outer_pay_set::getLanguagelist()
+{
+    if(languagelist.isEmpty()) {
+        languagelist.append(QPair<QString, QString>(tr("随系统"), ""));
+        languagelist.append(QPair<QString, QString>(tr("中文"), "CN"));
+        languagelist.append(QPair<QString, QString>(tr("英文"), "EN"));
+        languagelist.append(QPair<QString, QString>(tr("波斯文"), "FA"));
+        languagelist.append(QPair<QString, QString>(tr("德语"), "DE"));
+
+        languagelist.append(QPair<QString, QString>(tr("法语"), "FR"));
+        languagelist.append(QPair<QString, QString>(tr("俄罗斯语"), "RU"));
+        languagelist.append(QPair<QString, QString>(tr("西班牙语"), "ES"));
+        languagelist.append(QPair<QString, QString>(tr("土耳其语"), "TR"));
+        languagelist.append(QPair<QString, QString>(tr("阿拉伯语"), "AR"));
+
+        languagelist.append(QPair<QString, QString>(tr("韩语"), "KO"));
+        languagelist.append(QPair<QString, QString>(tr("日语"), "JA"));
+        languagelist.append(QPair<QString, QString>(tr("以色列语"), "IW"));
+        languagelist.append(QPair<QString, QString>(tr("意大利语"), "IT"));
+        languagelist.append(QPair<QString, QString>(tr("葡萄牙语"), "PT"));
+
+        languagelist.append(QPair<QString, QString>(tr("印地语"), "HI"));
+        languagelist.append(QPair<QString, QString>(tr("孟加拉语"), "BN"));
+        languagelist.append(QPair<QString, QString>(tr("旁遮普语"), "PA"));
+    }
+    return languagelist;
+}
+
+QString w_sys_manage_outer_pay_set::getLanguageValue(const QString &key)
+{
+    QList<QPair<QString, QString> >& list = w_sys_manage_outer_pay_set::getLanguagelist();
+    foreach(QPair<QString, QString> &p, list) {
+        if(p.second == key) {
+            return p.first;
+        }
+    }
+    return "";
+}
+
+void w_sys_manage_outer_pay_set::clearCache()
+{
+    languagelist.clear();
+}
+
+void w_sys_manage_outer_pay_set::retranslateView()
+{
+    ui->retranslateUi(this);
+
+    //
+    backlist_model->item(0)->setData(tr("参数设置"), Qt::UserRole);
+    backlist_model->item(1)->setData(tr("其他"), Qt::UserRole);
+
+    comIndexSaveClear(ui->comboBox_blotout_round);
+    ui->comboBox_blotout_round->addItem(tr("选用抹零"),1);
+    ui->comboBox_blotout_round->addItem(tr("选用四舍五入"),2);
+
+    comIndexSaveClear(ui->comboBox_blotout_mode);
+    ui->comboBox_blotout_mode->addItem(tr("不抹零"), 1);
+    ui->comboBox_blotout_mode->addItem(tr("抹零到元"), 2);
+    ui->comboBox_blotout_mode->addItem(tr("抹零到十"), 3);
+    ui->comboBox_blotout_mode->addItem(tr("抹零到百"), 4);
+
+    comIndexSaveClear(ui->comboBox_round_mode);
+    ui->comboBox_round_mode->addItem(tr("不四舍五入"), 1);
+    ui->comboBox_round_mode->addItem(tr("到角"), 2);
+    ui->comboBox_round_mode->addItem(tr("到元"), 3);
+    ui->comboBox_round_mode->addItem(tr("到十元"), 4);
+
+    comIndexSaveClear(ui->comboBox_language);
+    addLanguageList(ui->comboBox_language);
+
+    comIndexSaveClear(ui->comboBox_yingye_model);
+    ui->comboBox_yingye_model->addItem(tr("快餐模式"));
+    ui->comboBox_yingye_model->addItem(tr("酒楼模式"));
+    comIndexSaveClear(ui->comboBox_skin);
+    ui->comboBox_skin->addItem(tr("曜石黑"), "obsidian");
+    ui->comboBox_skin->addItem(tr("天空蓝"), "skyblue");
+
+
+    comIndexRestoreAll();
+}
+
+
+void w_sys_manage_outer_pay_set::took()
+{
+    foreach(int index, index_set){
+        saveData(index, true);
+    }
+
+    this->accept();
+}
+
+void w_sys_manage_outer_pay_set::tocancel()
+{
+    this->reject();
+}
+
+void w_sys_manage_outer_pay_set::toupdateSection(const QModelIndex &index)
+{
+    saveData(index.row());
+}
+
+void w_sys_manage_outer_pay_set::toskinapp()
+{
+    QString key = ui->comboBox_skin->itemData(ui->comboBox_skin->currentIndex()).toString();
+    if(!key.isEmpty()){
+        QFile file(QString("userdata/settings/skin/fastfd_%1.qss")
+                   .arg(key));
+        if(file.open(QFile::ReadOnly)){
+            qApp->setStyleSheet(file.readAll());
+            file.close();
+            lds::sysconf->setValue("system_setting/skin_name", key);
+            return;
+        }
+        qDebug() << file.errorString();
+    }
+    qDebug() << "filename is empty";
+}
+
+void w_sys_manage_outer_pay_set::toshowround(int index)
+{
+    switch(index) {
+    case 0:
+        ui->comboBox_blotout_mode->show();
+        ui->comboBox_round_mode->hide();
+        break;
+    case 1:
+        ui->comboBox_blotout_mode->hide();
+        ui->comboBox_round_mode->show();
+        break;
+    }
+}
+
+void w_sys_manage_outer_pay_set::tofunction()
+{
+    lds_query query;
+    if(1 == lds_messagebox::question(this, tr("提示"), tr("该操作将会将会员特价同步为零售价,是否继续"), tr("继续"), tr("取消"))){
+        return;
+    }
+    if(query.exec("update cey_bt_dish set num_m_price = num_price")){
+        lds_messagebox::information(this, tr("提示"), tr("同步成功"));
+        return;
+    }
+    lds_messagebox::information(this, tr("提示"), tr("同步失败"));
+    return;
+}
+
+void w_sys_manage_outer_pay_set::tofunction_2()
+{
+    lds_dialog_input inputdialog(this);
+    inputdialog.ui->label->setText(ui->pushButton_function_2->text());
+    inputdialog.ui->lineEdit->setText("0");
+    inputdialog.setWindowTitle(tr("修改")+ui->pushButton_function_2->text());
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&inputdialog).exec()){
+        //1菜品设置服务费、设置服务费率模式、设置服务费率值
+        lds_query query;
+        if(query.exec(QString("update cey_bt_dish set ch_serviceflag = 'Y'  "))){
+            //            SELECT *,ch_serviceflag = 'N'/*折后服务税*/, ch_service_mode = 4/*菜品消费服务税*/， int_rate/*服务率%*/ FROM hddpos.cey_bt_table_type;
+            if(query.exec(QString("update cey_bt_table_type set ch_serviceflag = 'N' , ch_service_mode = 4, int_rate = '%1' ")
+                          .arg(inputdialog.ui->lineEdit->text()))){
+                lds_messagebox::information(this, tr("提示"), tr("操作成功"));
+                return;
+            }
+        }
+        
+        lds_messagebox::information(this, tr("提示"), tr("操作失败"));
+    }
+}
+
+void w_sys_manage_outer_pay_set::tofunction_3()
+{
+
+    lds_messagebox_loading *loading = new lds_messagebox_loading(this, "WAITING...");
+    loading->setText(tr("正在数据库升级..."));
+    lds_roundeddialog_rect_align loading_help(loading);
+    loading_help.show();
+
+    lds_dialog_input inputdialog(this);
+    QString sql_error;
+    inputdialog.ui->label->setText(tr("密钥:"));
+    inputdialog.ui->lineEdit->setEchoMode(QLineEdit::Password);
+#ifdef QT_DEBUG
+    inputdialog.ui->lineEdit->setText(wxmanager::f_get_godpassword());
+#endif
+    inputdialog.setWindowTitle(tr("请输入密钥"));
+    if(QDialog::Accepted==lds_roundeddialog_rect_align(&inputdialog).exec()){
+        sql_error = tr("密码错误");
+        if(inputdialog.ui->lineEdit->text()==wxmanager::f_get_godpassword()){
+            lds_query query;
+            sql_error = tr("数据库错误");
+            if(query.exec("delete from cey_sys_sqlversion ;")){
+                lds_query query;
+                query.exec("select * from cey_sys_sqlversion order by sqlversion desc");//从大到小
+                query.next();
+
+
+                sql_error=public_sql::MySQL_sqlversion_update(this, query.recordValue("sqlversion").toString(), loading);
+                if(sql_error.isEmpty()){
+                    return;
+                }
+            }
+        }
+    }
+    if(!sql_error.isEmpty()) {
+        public_sql::Other_sql_update();//不会影响前他升级
+        lds_messagebox::information(this, tr("提示"),tr("数据库升级:")+sql_error);
+    }
+}
+
+void w_sys_manage_outer_pay_set::tofunction_4()
+{
+    lds_dialog_input inputdialog(this);
+    inputdialog.ui->label->setText(ui->pushButton_function_4->text());
+    inputdialog.ui->lineEdit->setText("0");
+    inputdialog.setWindowTitle(tr("修改")+ui->pushButton_function_4->text());
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&inputdialog).exec()){
+        //1菜品设置服务费、设置服务费率模式、设置服务费率值
+        lds_query query;
+        if(query.exec(QString("update cey_bt_dish set int_rate = '%1' ")
+                      .arg(inputdialog.ui->lineEdit->text()))){
+            lds_messagebox::information(this, tr("提示"), tr("操作成功"));
+            return;
+        }
+        lds_messagebox::information(this, tr("提示"), tr("操作失败"));
+    }
+}
+
+void w_sys_manage_outer_pay_set::tofunction_5()
+{
+    if(0 == lds_messagebox::question(this, tr("提示"), _TITLE0(this), tr("是"), tr("否"))) {
+        if(w_sys_manage_sqlcopy::enkeep()){
+            lds_messagebox::information(this, tr("提示"), tr("操作成功"));
+            return;
+        }
+        lds_messagebox::information(this, tr("提示"), tr("操作失败"));
+    }
+}
+
+void w_sys_manage_outer_pay_set::tofunction_6()
+{
+
+    lds_dialog_input inputdialog(this);
+    QString sql_error;
+    inputdialog.ui->label->setText(tr("密钥:"));
+    inputdialog.ui->lineEdit->setEchoMode(QLineEdit::Password);
+#ifdef QT_DEBUG
+    inputdialog.ui->lineEdit->setText(wxmanager::f_get_godpassword());
+#endif
+    inputdialog.setWindowTitle(tr("请输入密钥"));
+    if(QDialog::Accepted==lds_roundeddialog_rect_align(&inputdialog).exec()){
+        sql_error = tr("密码错误");
+        if(inputdialog.ui->lineEdit->text()==wxmanager::f_get_godpassword()){
+            inputdialog.hideSecondLineEdt();
+            inputdialog.ui->label->setText(tr("年"));
+            inputdialog.setWindowTitle(tr("请输入年"));
+            inputdialog.ui->lineEdit->setEchoMode(QLineEdit::Normal);
+            inputdialog.ui->lineEdit->clear();
+            inputdialog.ui->lineEdit->setFocus();
+            sql_error = "";
+            if(QDialog::Accepted==lds_roundeddialog_rect_align(&inputdialog).exec()){
+                int year = inputdialog.ui->lineEdit->text().toInt();
+                bool resultflag = true;
+                lds_query query;
+                query.exec("show tables;");
+                while(query.next()) {
+                    QString tname = query.recordValue(0).toString();
+                    lds_query query2;
+                    query2.exec(QString("SHOW COLUMNS FROM %1 where type like 'datetime' ;").arg(tname));
+                    while(query2.next()) {
+                        QString cname = query2.recordValue(0).toString();
+                        lds_query query3;
+                        if(!query3.exec(QString(" update %1 set %2 = concat(year(curdate()), '-', month(%2),'-',  day(%2),' ',  time(%2)) where year(%2) = '%3' ;")
+                                        .arg(tname).arg(cname).arg(year))){
+                            resultflag = false;
+                            break;
+                        }
+                        continue;
+                    }
+                    if(!resultflag) break;
+                }
+                if(resultflag) {
+                    lds_messagebox::information(this, tr("提示"), tr("操作成功")+QString::number(year));
+                } else {
+                    lds_messagebox::information(this, tr("提示"), tr("操作失败"));
+                }
+                return;
+            }
+        }
+    }
+    if(!sql_error.isEmpty()) {
+        lds_messagebox::information(this, tr("提示"), sql_error);
+    }
+}
+
+void w_sys_manage_outer_pay_set::tofunction_7()
+{
+    w_sys_manage_businessdataclear dialog(this);
+    dialog.setWindowTitle(tr("业务数据库清除"));
+    dialog.setFixedHeight(300);
+    lds_roundeddialog_rect_align(&dialog).exec();
+}
+
+void w_sys_manage_outer_pay_set::tofunction_8()
+{
+    dataCheck(this);
+}
+
+void w_sys_manage_outer_pay_set::tofunction_9()
+{
+    lds_dialog_input inputdialog(this);
+    inputdialog.ui->label->setText(tr("数量"));
+    inputdialog.ui->lineEdit->setText("0");
+    inputdialog.setWindowTitle(_TITLE0(this));
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&inputdialog).exec()){
+        //1菜品设置服务费、设置服务费率模式、设置服务费率值
+        lds_query query;
+        if(query.exec(QString("update cey_bt_dish set num_item_warn = '%1' ")
+                      .arg(inputdialog.ui->lineEdit->text()))){
+            lds_messagebox::information(this, tr("提示"), tr("操作成功"));
+            return;
+        }
+        lds_messagebox::information(this, tr("提示"), tr("操作失败"));
+    }
+}
+
+void w_sys_manage_outer_pay_set::tofunction_10()
+{
+    if(1 == lds_messagebox::question(this, tr("提示"), _TITLE0(this), tr("确定"), tr("取消"))){
+        return;
+    }
+    lds_query::tran_saction();
+    lds_query query;
+    if(query.exec(
+                "update cey_bt_dish set ch_groupno = ch_dishno ;"
+                "update del_cey_bt_dish set ch_groupno = ch_dishno  ;"
+                )){
+        lds_query::com_mit();
+        lds_messagebox::information(this, tr("提示"), tr("操作成功"));
+        return;
+    }
+    lds_query::roll_back();
+    lds_messagebox::information(this, tr("提示"), tr("操作失败"));
+    return;
+}
+
+void w_sys_manage_outer_pay_set::toupload1()
+{
+    w_sys_manage_outer_pay_set_ftp dialog(this);
+    dialog.setWindowTitle(_TITLE0(this));
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
+
+    } else {
+        ui->radioButton_upload1->setChecked(false);
+    }
+}
+
+void w_sys_manage_outer_pay_set::toupload2()
+{
+    w_sys_manage_outer_pay_set_kechuan dialog(this);
+    dialog.setWindowTitle(_TITLE0(this));
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
+
+    } else {
+        ui->radioButton_upload2->setChecked(false);
+    }
+}
+
+void w_sys_manage_outer_pay_set::toupload3()
+{
+    w_sys_manage_outer_pay_set_xiexin dialog(this);
+    dialog.setWindowTitle(_TITLE0(this));
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
+
+    } else {
+        ui->radioButton_upload3->setChecked(false);
+    }
+}
+
+void w_sys_manage_outer_pay_set::toupload4()
+{
+    w_sys_manage_outer_pay_set_isoft dialog(this);
+    dialog.setWindowTitle(_TITLE0(this));
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
+
+    } else {
+        ui->radioButton_upload4->setChecked(false);
+    }
+}
+
+void w_sys_manage_outer_pay_set::touncheck()
+{
+    QRadioButton *rb = qobject_cast<QRadioButton *>(this->sender());
+    if(rb == ui->radioButton_upload1) {
+        ui->radioButton_upload2->setChecked(false);
+        ui->radioButton_upload3->setChecked(false);
+    }
+    if(rb == ui->radioButton_upload2) {
+        ui->radioButton_upload1->setChecked(false);
+        ui->radioButton_upload3->setChecked(false);
+    }
+    if(rb == ui->radioButton_upload3) {
+        ui->radioButton_upload1->setChecked(false);
+        ui->radioButton_upload2->setChecked(false);
+    }
+}
+
+void w_sys_manage_outer_pay_set::touploadaware(const QString &arg)
+{
+    if(arg.trimmed().toLower() == "sc"){//上传
+        ui->lineEdit_upload_awake->hide();
+    } else if(arg.trimmed().toLower() == "sql"){
+        w_sys_manage_outer_pay_set_sql dialog(this);
+        dialog.setWindowTitle("SQL_RUN");
+        dialog.exec();
+    }
+}
+
+void w_sys_manage_outer_pay_set::saveData(int index, bool issave)
+{
+    ui->stackedWidget_2->setCurrentIndex(index);
+    lds_query query;
+    switch(index) {
+    case 0:
+        if(issave) {
+
+            wxmanager::f_set_sysparm_q(query,"blotout_mode", ui->comboBox_blotout_mode->itemData(ui->comboBox_blotout_mode->currentIndex()));
+            wxmanager::f_set_sysparm_q(query,"round_mode", ui->comboBox_round_mode->itemData(ui->comboBox_round_mode->currentIndex()));
+            wxmanager::f_set_sysparm_q(query,"blotout_round", ui->comboBox_blotout_round->itemData(ui->comboBox_blotout_round->currentIndex()));
+            lds::sysconf->setValue("system_setting/SYS_LANGUAGE", ui->comboBox_language->itemData(ui->comboBox_language->currentIndex()));
+
+            lds::sysconf->setValue("system_setting/yingyemoshi", ui->comboBox_yingye_model->currentIndex());
+
+            wxmanager::f_set_sysparm_q(query,"pay_auto_discount", ui->checkBox_auto_dis->isChecked()?"1":"0");
+            wxmanager::f_set_sysparm_q(query,"pay_auto_discount_value", ui->spinBox_auto_dis_value->value());
+
+            wxmanager::f_set_sysparm_q(query,"serial_no_begin", ui->lineEdit_serial_no_begin->text());
+            wxmanager::f_set_sysparm_q(query,"serial_no_end", ui->lineEdit_serial_no_end->text());
+
+            lds::sysconf->setValue("system_setting/qt_type_column_count", ui->lineEdit_type_columns->text());
+
+            lds::sysconf->setValue("system_setting/qt_iconsize", ui->lineEdit_dish_columns->text()+"x"+ui->lineEdit_dish_rows->text());
+
+            lds::sysconf->setValue("system_setting/getweigthtimeout", ui->lineEdit_auto_weight_timeout->text());
+
+            //交班必须接班人
+            wxmanager::f_set_sysparm_q(query,"handover_oper", ui->checkBox_1->isChecked()?"1":"0");
+            //退菜必须输入退菜原因
+            wxmanager::f_set_sysparm_q(query,"orderdish_back", ui->checkBox_2->isChecked()?"1":"0");
+            //服务费计入低消费
+            wxmanager::f_set_sysparm_q(query,"low_service", ui->checkBox_3->isChecked()?"1":"0");
+            //是否输入手牌号
+            lds::sysconf->setValue("system_setting/fukuanshishurushoupai", ui->checkBox_4->isChecked()?"1":"0");
+            //点菜时弹出菜品详细
+            wxmanager::f_set_sysparm_q(query,"ordertonum", ui->checkBox_6->isChecked()?"1":"0");
+            //锁屏解锁必须为系统登录员工
+            lds::sysconf->setValue("system_setting/jiesuoyuangong", ui->checkBox_7->isChecked()?"1":"0");
+            //是否启用会员价
+            wxmanager::f_set_sysparm_q(query,"bp_discountproject", ui->checkBox_8->isChecked()?"1":"0");
+            //            //本机落单打印总单
+            //            lds::sysconf->setValue("system_setting/luodanzongdan", ui->checkBox_9->isChecked()?"1":"0");
+            //手工处理服务费
+            wxmanager::f_set_sysparm_q(query,"service_handwork", ui->checkBox_10->isChecked()?"1":"0");
+            //前台付款默认现金
+            wxmanager::f_set_sysparm_q(query,"qt_def_money", ui->checkBox_qt_def_money->isChecked()?"1":"0");
+            //点菜时相同菜品不叠加
+            lds::sysconf->setValue("system_setting/samedishNotadd_order", ui->checkBox_15->isChecked());
+            //交班前显示交班信息
+            wxmanager::f_set_sysparm_q(query,"show_info_before_shift", ui->checkBox_show_info_before_shift->isChecked()?"1":"0");
+            //前台显示库存信息
+            lds::sysconf->setValue("system_setting/inventory_qt_show_info", ui->checkBox_16->isChecked());
+            //负库存可以消费
+            wxmanager::f_set_sysparm_q(query,"inventory_negative_cannot_pay", ui->checkBox_17->isChecked()?"1":"0");
+            //前台点菜时子套菜折叠
+            wxmanager::f_set_sysparm_q(query,"qt_Y_dish_fold", ui->checkBox_19->isChecked()?"1":"0");
+            //前台允许会员发卡
+            lds::sysconf->setValue("system_setting/qt_can_member_sendcard", ui->checkBox_18->isChecked());
+            //字体大小
+            lds::sysconf->setValue("system_setting/sys_font_size", ui->comboBox_font_size->currentText());
+            //前台显示原料
+            wxmanager::f_set_sysparm_q(query,"qt_show_ingredient", ui->checkBox_ingredient->isChecked()?"1":"0");
+            //字体选择
+            lds::sysconf->setValue("system_setting/sys_font", ui->comboBox_font_select->curusrdata().toString());
+            //菜品启用大类
+            lds::sysconf->setValue("system_setting/dish_type_enabled", ui->checkBox_20->isChecked()?"1":"0");
+
+            return;
+        }
+        if(index_set.find(index) == index_set.end()) {
+            ui->comboBox_blotout_round->setCurrentIndex(ui->comboBox_blotout_round->findData(wxmanager::f_get_sysparm_q(query,"blotout_round").toInt()));
+            ui->comboBox_blotout_mode->setCurrentIndex(ui->comboBox_blotout_mode->findData(wxmanager::f_get_sysparm_q(query,"blotout_mode").toInt()));
+            ui->comboBox_round_mode->setCurrentIndex(ui->comboBox_round_mode->findData(wxmanager::f_get_sysparm_q(query,"round_mode").toInt()));
+            toshowround(ui->comboBox_blotout_round->currentIndex());
+
+
+            //
+            ui->comboBox_language->setCurrentIndex(ui->comboBox_language->findData(lds::sysconf->value("system_setting/SYS_LANGUAGE").toString()));
+
+            //字体选择
+            QDir dir("userdata/settings/font");
+            if(!dir.exists()) dir.mkpath(dir.path());
+            ui->comboBox_font_select->addItem("", "");
+            QFileInfoList infolist = dir.entryInfoList(QStringList() << "*.ttf" << "*.TTF");
+            foreach(const QFileInfo &info, infolist) {
+                if(info.baseName() == "." || info.baseName() == "..") continue;
+                ui->comboBox_font_select->addItem(info.baseName(), info.fileName());
+            }
+            ui->comboBox_font_select->setCurrentIndex(ui->comboBox_font_select->findData(lds::sysconf->value("system_setting/sys_font").toString()));
+
+            //
+            ui->comboBox_yingye_model->setCurrentIndex(lds::sysconf->value("system_setting/yingyemoshi").toInt());
+
+            ui->checkBox_auto_dis->setChecked(wxmanager::f_get_sysparm_q(query,"pay_auto_discount") == "1");
+            ui->spinBox_auto_dis_value->setValue(wxmanager::f_get_sysparm_q(query,"pay_auto_discount_value").toInt());
+
+            ui->lineEdit_serial_no_begin->setText(wxmanager::f_get_sysparm_q(query,"serial_no_begin"));
+            ui->lineEdit_serial_no_end->setText(wxmanager::f_get_sysparm_q(query,"serial_no_end"));
+
+            ui->lineEdit_type_columns->setText(lds::sysconf->value("system_setting/qt_type_column_count", "5").toString());
+
+            QStringList xy = lds::sysconf->value("system_setting/qt_iconsize", "5x4").toString().split("x");
+            ui->lineEdit_dish_columns->setText(xy.value(0));
+            ui->lineEdit_dish_rows->setText(xy.value(1));
+
+            ui->lineEdit_auto_weight_timeout->setText(lds::sysconf->value("system_setting/getweigthtimeout", "3").toString());
+
+            ui->comboBox_skin->setCurrentIndex(ui->comboBox_skin->findData(lds::sysconf->value("system_setting/skin_name", "obsidian").toString()));
+
+
+            //交班必须接班人
+            ui->checkBox_1->setChecked(wxmanager::f_get_sysparm_q(query,"handover_oper") == "1");
+            //退菜必须输入退菜原因
+            ui->checkBox_2->setChecked(wxmanager::f_get_sysparm_q(query,"orderdish_back") == "1");
+            //服务费计入低消费
+            ui->checkBox_3->setChecked(wxmanager::f_get_sysparm_q(query,"low_service") == "1");
+            //是否输入手牌号
+            ui->checkBox_4->setChecked(lds::sysconf->value("system_setting/fukuanshishurushoupai").toBool());
+            //点菜时弹出菜品详细
+            ui->checkBox_6->setChecked(wxmanager::f_get_sysparm_q(query,"ordertonum") == "1");
+            //锁屏解锁必须为系统登录员工
+            ui->checkBox_7->setChecked(lds::sysconf->value("system_setting/jiesuoyuangong").toBool());
+            //是否启用会员价
+            ui->checkBox_8->setChecked(wxmanager::f_get_sysparm_q(query,"bp_discountproject") == "1");
+            //            //本机落单打印总单
+            //            ui->checkBox_9->setChecked(lds::sysconf->value("system_setting/luodanzongdan").toString() == "1");
+            //手工处理服务费
+            ui->checkBox_10->setChecked(wxmanager::f_get_sysparm_q(query,"service_handwork") == "1");
+            //前台付款默认现金
+            ui->checkBox_qt_def_money->setChecked(wxmanager::f_get_sysparm_q(query,"qt_def_money","1") == "1");
+            //点菜时相同菜品不叠加
+            ui->checkBox_15->setChecked(lds::sysconf->value("system_setting/samedishNotadd_order", false).toBool());
+            //交班前显示交班信息
+            ui->checkBox_show_info_before_shift->setChecked(wxmanager::f_get_sysparm_q(query,"show_info_before_shift", "0") == "1");
+            //前台显示库存信息
+            ui->checkBox_16->setChecked(lds::sysconf->value("system_setting/inventory_qt_show_info", false).toBool());
+            //负库存可以消费
+            ui->checkBox_17->setChecked(wxmanager::f_get_sysparm_q(query,"inventory_negative_cannot_pay","0") == "1");
+            //前台点菜时子套菜折叠
+            ui->checkBox_19->setChecked(wxmanager::f_get_sysparm_q(query,"qt_Y_dish_fold","0") == "1");
+            //前台允许会员发卡
+            ui->checkBox_18->setChecked(lds::sysconf->value("system_setting/qt_can_member_sendcard", false).toBool());
+            //字体大小
+            ui->comboBox_font_size->setEditText(lds::sysconf->value("system_setting/sys_font_size", "10").toString());
+            //前台显示原料
+            ui->checkBox_ingredient->setChecked(wxmanager::f_get_sysparm_q(query,"qt_show_ingredient","0") == "1");
+            //菜品启用大类
+            ui->checkBox_20->setChecked(lds::sysconf->value("system_setting/dish_type_enabled", false).toBool());
+
+        }
+        break;
+        //////////////////////////////
+    case 1:
+        if(issave) {
+            //外卖送餐员默认0000
+            lds::sysconf->setValue("system_setting/waimaidef0000", ui->checkBox->isChecked());
+            //中餐下退出输入当前操作员信息
+            lds::sysconf->setValue("system_setting/restaurant_inputoperinfo", ui->checkBox_13->isChecked());
+            //启动ups检测
+            lds::sysconf->setValue("system_setting/upsiseffect", ui->checkBox_14->isChecked());
+            Printer_POS::com_upsiseffect = lds::sysconf->value("system_setting/upsiseffect", false).toBool();
+            //开启错误日志
+            lds::sysconf->setValue("system_setting/error_log_toggled", ui->checkBox_11->isChecked()?"1":"0");
+            //科传接口
+            wxmanager::f_set_sysparm("ftptp_use", ui->radioButton_upload1->isChecked()?"1":"0");
+            wxmanager::f_set_sysparm("njgj_use", ui->radioButton_upload2->isChecked()?"1":"0");
+            wxmanager::f_set_sysparm("xiexin_use", ui->radioButton_upload3->isChecked()?"1":"0");
+            wxmanager::f_set_sysparm("isoft_use", ui->radioButton_upload4->isChecked()?"1":"0");
+
+            wxmanager::f_set_sysparm("bp_fmt_num_dec", ui->bp_fmt_num_dec->value());
+            wxmanager::f_set_sysparm("bp_fmt_price_dec", ui->bp_fmt_price_dec->value());
+            wxmanager::f_set_sysparm("bp_fmt_amount_dec", ui->bp_fmt_amount_dec->value());
+
+            return;
+        }
+        if(index_set.find(index) == index_set.end()) {
+            //外卖送餐员默认0000
+            ui->checkBox->setChecked(lds::sysconf->value("system_setting/waimaidef0000", false).toBool());
+            //中餐下退出输入当前操作员信息
+            ui->checkBox_13->setChecked(lds::sysconf->value("system_setting/restaurant_inputoperinfo",false).toBool());
+            //启动ups检测
+            ui->checkBox_14->setChecked(lds::sysconf->value("system_setting/upsiseffect", false).toBool());
+            //开启错误日志
+            ui->checkBox_11->setChecked(lds::sysconf->value("system_setting/error_log_toggled").toString() == "1");
+
+            //科传接口
+            ui->radioButton_upload1->setChecked(wxmanager::f_get_sysparm("ftptp_use") == "1");
+            ui->radioButton_upload2->setChecked(wxmanager::f_get_sysparm("njgj_use") == "1");
+            ui->radioButton_upload3->setChecked(wxmanager::f_get_sysparm("xiexin_use") == "1");
+            ui->radioButton_upload4->setChecked(wxmanager::f_get_sysparm("isoft_use") == "1");
+            ui->bp_fmt_num_dec->setValue(wxmanager::f_set_sysparm("bp_fmt_num_dec", 3).toInt());
+            ui->bp_fmt_price_dec->setValue(wxmanager::f_set_sysparm("bp_fmt_price_dec", 2).toInt());
+            ui->bp_fmt_amount_dec->setValue(wxmanager::f_set_sysparm("bp_fmt_amount_dec", 2).toInt());
+            //            ui->radioButton_upload3->hide();
+#ifdef QT_DEBUG
+            ui->lineEdit_upload_awake->setText("输入sc激活；""输入sql执行");
+            ui->radioButton_upload3->show();
+#endif
+        }
+        break;
+    }
+    index_set.insert(index);
+}
+
+
+QString w_sys_manage_outer_pay_set_ftp::FtpAddress = "FTP://ftp.lncrland.com";
+
+w_sys_manage_outer_pay_set_ftp::w_sys_manage_outer_pay_set_ftp(QWidget *parent) :
+    lds_model_mapwidget_vertical(parent), ui(new Ui_w_sys_manage_outer_pay_set_ftp)
+{
+    ui->setupUi(this);
+    //
+    tablemodel = new lds_model_sqltablemodel(this);
+    tablemodel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+    tablemodel->setTable("cey_sys_parameter");
+    tablemodel->setFilter("vch_parameter like 'ftptp%' ");
+    tablemodel->select();
+
+    mapper = new QDataWidgetMapper(this);
+    mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
+    mapper->setModel(tablemodel);
+    mapper->setOrientation(Qt::Vertical);
+
+    scan_all_objectname_add_map("ftptp");
+    //
+    mapper->setCurrentIndex(1);
+    //
+    connect(ui->pushButton_exit, SIGNAL(clicked()),this,SLOT(reject()));
+    connect(ui->pushButton_ok, SIGNAL(clicked()),this,SLOT(took()));
+    connect(ui->pushButton_test, SIGNAL(clicked()),this,SLOT(totest()));
+    /*
+    connect(ui->pushButton_detail, SIGNAL(clicked()),this,SLOT(todetail()));
+    connect(ui->pushButton_example, SIGNAL(clicked()),this,SLOT(toexample()));*/
+    //    ui->pushButton_detail->hide();
+
+    //
+    QString path = public_sql::ftp_businessdataupload_dir;
+    QDir  dir(path);
+    if(!dir.exists()) dir.mkpath(path);
+    QFileInfoList fileinfos=dir.entryInfoList();
+    ui->comboBox_records->clear();
+    foreach(QFileInfo info, fileinfos){
+        if(info.fileName()=="."
+                ||info.fileName()=="..")continue;
+        ui->comboBox_records->addItem(info.fileName());
+    }
+
+    ui->lineEdit_ftptp_address->setText(w_sys_manage_outer_pay_set_ftp::FtpAddress);
+}
+
+w_sys_manage_outer_pay_set_ftp::~w_sys_manage_outer_pay_set_ftp()
+{
+    delete ui;
+}
+
+void w_sys_manage_outer_pay_set_ftp::took()
+{
+    tablemodel->submitAll();
+    this->accept();
+}
+
+void w_sys_manage_outer_pay_set_ftp::todetail()
+{
+
+}
+
+void w_sys_manage_outer_pay_set_ftp::toexample()
+{
+    /*
+商铺号 B41B0231N01
+
+货号 B41B0231N01CY0001
+
+FTP地址  ftp.lncrland.com
+
+账号 B41B41B0231N01
+
+密码 J9w8400Q*/
+    ui->ftptp_storecode->setText("B41B0231N01");
+    ui->ftptp_plu->setText("B41B0231N01CY0001");
+    //    ui->ftptp_address->setText("FTP://ftp.lncrland.com");
+    ui->ftptp_usr->setText("B41B0231N01");
+    //    ui->ftptp_pwd->setText("J9w8400Q");
+    //
+    mapper->submit();
+}
+
+void w_sys_manage_outer_pay_set_ftp::totest()
+{
+    tablemodel->submitAll();
+
+    QDate last_update_date = n_func::f_get_sysdatetime().date();
+    QString ls_err;
+    QList<w_scr_dish::HUARUN_BUSINESS_DATA> datalist;
+    w_scr_dish::GET_HUARUN_BUSINESS_DATA(last_update_date, datalist, ls_err);
+    int ret = w_scr_dish::HUARUN_BUSINESS_DATA_UPLOAD(w_sys_manage_outer_pay_set_ftp::FtpAddress
+                                                      ,wxmanager::f_get_sysparm("ftptp_usr")
+                                                      ,wxmanager::f_get_sysparm("ftptp_pwd")
+                                                      ,datalist
+                                                      );
+    if(w_scr_dish::huarun_ftp_server_success == ret) {
+        lds_messagebox::warning(this, tr("提示"), tr("操作成功"));
+        return;
+    }
+    lds_messagebox::warning(this, tr("提示"), w_scr_dish::huarunInfo_error(ret));
+}
+
+void w_sys_manage_outer_pay_set_ftp::toaddress_def()
+{
+    //    ui->ftptp_address->setText("FTP://ftp.lncrland.com");
+}
+
+void w_sys_manage_outer_pay_set_ftp::saveData()
+{
+
+}
+
+bool w_sys_manage_outer_pay_set_ftp::insert_sql_objectname(const QString &objectname)
+{
+    lds_query query;
+    return query.exec(QString("insert into cey_sys_parameter(vch_parameter, vch_value) value('%1', '' )")
+                      .arg(objectname));//39
+}
+
+
+#include "w_scr_dish_data_collection.h"
+
+w_sys_manage_outer_pay_set_kechuan::w_sys_manage_outer_pay_set_kechuan(QWidget *parent)
+    : lds_model_mapwidget_vertical(parent), ui(new Ui_w_sys_manage_outer_pay_set_kechuan)
+{
+    ui->setupUi(this);
+    //
+    tablemodel = new lds_model_sqltablemodel(this);
+    tablemodel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+    tablemodel->setTable("cey_sys_parameter");
+    tablemodel->setFilter("vch_parameter like 'njgj%' ");
+    tablemodel->select();
+
+    mapper = new QDataWidgetMapper(this);
+    mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
+    mapper->setModel(tablemodel);
+    mapper->setOrientation(Qt::Vertical);
+
+    scan_all_objectname_add_map("njgj");
+    //
+    mapper->setCurrentIndex(1);
+    //
+    connect(ui->pushButton_exit, SIGNAL(clicked()),this,SLOT(reject()));
+    connect(ui->pushButton_ok, SIGNAL(clicked()),this,SLOT(took()));
+    connect(ui->pushButton_detail, SIGNAL(clicked()),this,SLOT(todetail()));
+    connect(ui->pushButton_example, SIGNAL(clicked()),this,SLOT(toexample()));
+}
+
+w_sys_manage_outer_pay_set_kechuan::~w_sys_manage_outer_pay_set_kechuan()
+{
+    delete ui;
+}
+
+void w_sys_manage_outer_pay_set_kechuan::took()
+{
+    tablemodel->submitAll();
+    this->accept();
+}
+
+void w_sys_manage_outer_pay_set_kechuan::todetail()
+{
+    w_scr_dish_data_collection dialog(this);
+    dialog.setWindowTitle(tr("数据采集"));
+    lds_roundeddialog_rect_align(&dialog).exec();
+}
+
+void w_sys_manage_outer_pay_set_kechuan::toexample()
+{
+    ui->njgj_ip->setText("211.94.93.147");
+    ui->njgj_itemcode->setText("33201L15000131");
+    ui->njgj_license_agreement->setText("");
+    ui->njgj_mallid->setText("33201");
+    ui->njgj_port->setText("");
+    //    ui->njgj_port->setText("7088");
+    ui->njgj_storecode->setText("33201L1500013");
+    ui->njgj_username->setText("");
+    //    ui->njgj_username->setText("jinmao");
+    ui->njgj_web->setText("/salestrans.asmx");
+    //
+    mapper->submit();
+}
+
+bool w_sys_manage_outer_pay_set_kechuan::insert_sql_objectname(const QString &objectname)
+{
+    lds_query query;
+    return query.exec(QString("insert into cey_sys_parameter(vch_parameter, vch_value) value('%1', '' )")
+                      .arg(objectname));//39
+}
+
+//////////////////
+#include "ui_w_sys_manage_outer_pay_set_xiexin.h"
+w_sys_manage_outer_pay_set_xiexin::w_sys_manage_outer_pay_set_xiexin(QWidget *parent)
+    : lds_model_mapwidget_vertical(parent)
+{
+    ui = new Ui_w_sys_manage_outer_pay_set_xiexin;
+    ui->setupUi(this);
+
+    //
+    tablemodel = new lds_model_sqltablemodel(this);
+    tablemodel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+    tablemodel->setTable("cey_sys_parameter");
+    tablemodel->setFilter("vch_parameter like 'xiexin%' ");
+    tablemodel->select();
+
+    mapper = new QDataWidgetMapper(this);
+    mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
+    mapper->setModel(tablemodel);
+    mapper->setOrientation(Qt::Vertical);
+
+    scan_all_objectname_add_map("xiexin");
+    //
+    mapper->setCurrentIndex(1);
+    //
+    connect(ui->pushButton_cancel, SIGNAL(clicked()),this,SLOT(tocancel()));
+    connect(ui->pushButton_ok, SIGNAL(clicked()),this,SLOT(took()));
+    connect(ui->pushButton_test_upload_today, SIGNAL(clicked()),this,SLOT(touploadyesterday()));
+
+
+    //
+    QString path = lds::fastfd_localdata()+"/XIEXIN_BUSINESS_DATA_UPLOAD";
+    QDir  dir(path);
+    if(!dir.exists()) dir.mkpath(path);
+    QFileInfoList fileinfos=dir.entryInfoList();
+    ui->comboBox_records->clear();
+    foreach(QFileInfo info, fileinfos){
+        if(info.fileName()=="."
+                ||info.fileName()=="..")continue;
+        ui->comboBox_records->addItem(info.fileName());
+    }
+    ui->pushButton_test_upload_today->show();
+}
+w_sys_manage_outer_pay_set_xiexin::~w_sys_manage_outer_pay_set_xiexin()
+{
+    delete ui;
+}
+
+void w_sys_manage_outer_pay_set_xiexin::took()
+{
+    saveData();
+    this->accept();
+}
+
+bool w_sys_manage_outer_pay_set_xiexin::insert_sql_objectname(const QString &objectname)
+{
+    lds_query query;
+    return query.exec(QString("insert into cey_sys_parameter(vch_parameter, vch_value) value('%1', '' )")
+                      .arg(objectname));//39
+}
+
+void w_sys_manage_outer_pay_set_xiexin::tocancel()
+{
+    this->reject();
+}
+
+void w_sys_manage_outer_pay_set_xiexin::touploadyesterday()
+{
+    saveData();
+
+    QString errstring;
+    if(1 == w_scr_dish::XIEXIN_BUSINESS_DATA_UPLOAD(n_func::f_get_sysdatetime().date(), &errstring)) {
+        //
+        QString path = lds::fastfd_localdata()+"/XIEXIN_BUSINESS_DATA_UPLOAD";
+        QDir  dir(path);
+        if(!dir.exists()) dir.mkpath(path);
+        QFileInfoList fileinfos=dir.entryInfoList();
+        ui->comboBox_records->clear();
+        foreach(QFileInfo info, fileinfos){
+            if(info.fileName()=="."
+                    ||info.fileName()=="..")continue;
+            ui->comboBox_records->addItem(info.fileName());
+        }
+        //
+
+
+        lds_messagebox::information(this ,tr("提示"), tr("上传成功"));
+        this->accept();
+        return;
+    } else {
+        lds_messagebox::warning(this, tr("提示"), tr("操作失败")+errstring);
+    }
+}
+
+bool w_sys_manage_outer_pay_set_xiexin::saveData()
+{
+    if(wxmanager::f_get_sysparm("xiexin_lastdate").isEmpty())
+        wxmanager::f_set_sysparm("xiexin_lastdate", n_func::f_get_sysdatetime().toString("yyyy-MM-dd"), "XIEXIN LAST UPLOAD DATE");
+    tablemodel->submitAll();
+
+    return true;
+}
+
+void w_sys_manage_outer_pay_set::on_radioButton_payset1_clicked()
+{
+    ui->stackedWidget->setCurrentIndex(0);
+}
+
+void w_sys_manage_outer_pay_set::on_radioButton_payset2_clicked()
+{
+    ui->stackedWidget->setCurrentIndex(1);
+}
+
+void w_sys_manage_outer_pay_set::tolanguage_app()
+{
+    QString key = ui->comboBox_language->itemData(ui->comboBox_language->currentIndex()).toString();
+    lds::sysconf->setValue("system_setting/SYS_LANGUAGE", key);
+
+    retranslateSystem(lds::get_sys_language());
+    retranslateView();
+}
+
+bool w_sys_manage_outer_pay_set::get_is_language_changed()
+{
+    return old_language != lds::get_sys_language();
+}
+
+/////////////////////////////
+#include "ui_w_sys_manage_outer_pay_set_isoft.h"
+w_sys_manage_outer_pay_set_isoft::w_sys_manage_outer_pay_set_isoft(QWidget *parent)
+    : lds_model_mapwidget_vertical(parent)
+{
+    ui = new Ui_w_sys_manage_outer_pay_set_isoft;
+    ui->setupUi(this);
+    //
+    tablemodel = new lds_model_sqltablemodel(this);
+    tablemodel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+    tablemodel->setTable("cey_sys_parameter");
+    tablemodel->setFilter("vch_parameter like 'isoft%' ");
+    tablemodel->select();
+
+    mapper = new QDataWidgetMapper(this);
+    mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
+    mapper->setModel(tablemodel);
+    mapper->setOrientation(Qt::Vertical);
+
+    scan_all_objectname_add_map("isoft");
+    //
+    mapper->setCurrentIndex(1);
+
+    connect(ui->pushButton_exit, SIGNAL(clicked()),this,SLOT(reject()));
+    connect(ui->pushButton_ok, SIGNAL(clicked()),this,SLOT(took()));
+    connect(ui->pushButton_show,SIGNAL(clicked()),this,SLOT(toshowcontent()));
+
+    //
+    QString path = lds::fastfd_localdata()+"/business_data_upload_isoft";
+    if(!QDir(path).exists()) {
+        QDir().mkpath(path);
+    }
+    QFileInfoList fileinfos=QDir(path).entryInfoList(QStringList() << "*.txt");
+    ui->comboBox_upload_caches->clear();
+    foreach(const QFileInfo &info, fileinfos){
+        if(info.fileName()=="."
+                ||info.fileName()=="..")continue;
+        ui->comboBox_upload_caches->addItem(info.fileName(), info.filePath());
+    }
+}
+
+w_sys_manage_outer_pay_set_isoft::~w_sys_manage_outer_pay_set_isoft()
+{
+    delete ui;
+}
+
+void w_sys_manage_outer_pay_set_isoft::took()
+{
+    tablemodel->submitAll();
+    this->accept();
+}
+
+void w_sys_manage_outer_pay_set_isoft::tocancel()
+{
+    this->reject();
+}
+
+void w_sys_manage_outer_pay_set_isoft::toshowcontent()
+{
+    int index = ui->comboBox_upload_caches->currentIndex();
+    if(index >= 0) {
+
+        QDialog *dialog = new QDialog;
+        dialog->setStyleSheet("border:2px solid #ff650b");
+        dialog->setWindowFlags(Qt::Popup);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        QTextEdit *edit = new QTextEdit(dialog);
+        dialog->resize(500, 500);
+        edit->setGeometry(0, 0, 500, 500);
+        dialog->move(lds::getGlobalCenterPopup(this, dialog));
+
+        QFile file;
+        file.setFileName(ui->comboBox_upload_caches->itemData(index).toString());
+        file.open(QFile::ReadOnly);
+        edit->setText(file.readAll());
+        file.close();
+
+        dialog->exec();
+    }
+}
+
+bool w_sys_manage_outer_pay_set_isoft::insert_sql_objectname(const QString &objectname)
+{
+    lds_query query;
+    return query.exec(QString("insert into cey_sys_parameter(vch_parameter, vch_value) value('%1', '' )")
+                      .arg(objectname));//39
+}

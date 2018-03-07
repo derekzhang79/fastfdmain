@@ -1,0 +1,5 @@
+[w_rpt_report_cashreport-0]
+printtitle=true
+printtail=true
+vheaderlist=0, 1, 2, 3
+vheaderwidthlist=20, 8, 10, 6, 5

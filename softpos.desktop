@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=SoftPos
+Name[zh_CN]=softpos.desktop
+Encoding=UTF-8
+Exec=/usr/desk/pos/SoftPos
+Icon=test.png
+StartupNotify=true
+Terminal=false
+Type=Application
+List=false
+Version=1.0

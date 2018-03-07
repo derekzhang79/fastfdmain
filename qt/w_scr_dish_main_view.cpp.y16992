@@ -1,0 +1,563 @@
+#include "w_scr_dish_main_view.h"
+#include "ui_w_scr_dish_main_view.h"
+#include "back_view_dialog.h"
+#include <QTimer>
+#include <QWidgetAction>
+#include "lds_menu.h"
+#include "public_short_cut_map.h"
+#include "bianma_cook.h"
+#include "ftableview_standmodel_sql.h"
+#include "ftableview_delegate.h"
+#include "w_bt_dish_base.h"
+
+
+
+w_scr_dish_main_view::w_scr_dish_main_view(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::w_scr_dish_main_view)
+{
+    ui->setupUi(this);
+    resize(lds::MAIN_WINDOW_SIZE);
+    //
+
+    int dish_width = lds::MAIN_WINDOW_SIZE.width() - lds::PAY_LEFT_SPACE;
+    int dish_height = lds::MAIN_WINDOW_SIZE.height() - 3 * lds::QT_FIXED_HEIGHT_BOTTOM;
+    if(lds::MAIN_WINDOW_SIZE.width() == 1366) {
+        dish_width = dish_width - lds::QT_FIXED_BETWEEN;
+        dish_height = lds::MAIN_WINDOW_SIZE.height() - 2 * lds::QT_FIXED_HEIGHT_BOTTOM;
+    }
+
+    //widget
+    ui->frame_deskinfo->setFixedSize(lds::PAY_LEFT_SPACE, 80);
+    ui->frame_deskinfo->move(0, 0);
+
+    ui->frame_bottom->setFixedSize(lds::MAIN_WINDOW_SIZE.width(), lds::QT_FIXED_HEIGHT_BOTTOM);
+    ui->frame_bottom->move(0, lds::MAIN_WINDOW_SIZE.height() - lds::QT_FIXED_HEIGHT_BOTTOM);
+
+    ui->frame_dish_bottom->setFixedSize(lds::PAY_LEFT_SPACE,  30);
+    ui->frame_dish_bottom->move(0, lds::MAIN_WINDOW_SIZE.height() - ui->frame_dish_bottom->height() - ui->frame_bottom->height());
+
+    ui->tableView->setFixedSize(lds::PAY_LEFT_SPACE,  lds::MAIN_WINDOW_SIZE.height() - ui->frame_bottom->height() - ui->frame_deskinfo->height() - ui->frame_dish_bottom->height());
+    ui->tableView->move(0, ui->frame_deskinfo->height());
+
+    ui->tableView_type->move(lds::PAY_LEFT_SPACE, 0);
+    ui->tableView_type->setFixedSize(dish_width, lds::QT_FIXED_HEIGHT_BOTTOM);
+
+    ui->tableView_subtype->move(lds::PAY_LEFT_SPACE, ui->tableView_type->geometry().bottom());
+    ui->tableView_subtype->setFixedSize(dish_width, lds::QT_FIXED_HEIGHT_BOTTOM);
+
+    ui->tableView_dish->move(lds::PAY_LEFT_SPACE, ui->tableView_subtype->geometry().bottom());
+    ui->tableView_dish->setFixedSize(dish_width, dish_height);
+
+    //label_logo
+    ui->label_logo->clear();
+    ui->label_text->clear();
+    ui->label_num->clear();
+    ui->label_total->setText("");
+    shortcut_map = 0;
+    ui->tableView->setFocusPolicy(Qt::NoFocus);
+    ui->tableView_type->setFocusPolicy(Qt::NoFocus);
+    ui->tableView_subtype->setFocusPolicy(Qt::NoFocus);
+    ui->tableView_dish->setFocusPolicy(Qt::NoFocus);
+    ui->label_total->setFocusPolicy(Qt::NoFocus);
+    ui->lineEdit_scan->setFocusPolicy(Qt::NoFocus);
+
+    QTimer::singleShot(0, this, SLOT(loadData()));
+}
+
+w_scr_dish_main_view::~w_scr_dish_main_view()
+{
+    delete ui;
+}
+
+void w_scr_dish_main_view::loadData()
+{
+    QStringList xy = lds::sysconf->value("system_setting/qt_iconsize").toString().split("x");
+    int dish_hcount = qMin(qMax(xy.value(0).toInt(), 4), 20);
+    int dish_vcount = qMin(qMax(xy.value(1).toInt(), 4), 20);
+
+    QString cc = lds::sysconf->value("system_setting/qt_type_column_count").toString();
+    int type_hcount  =qMin(qMax(4, cc.toInt()), 20);
+
+    //4 大类
+    {
+        ftableview_standmodel_sql *model_type = new ftableview_standmodel_sql(this);
+        ui->tableView_type->setModel(model_type);
+        model_type->selectionmodel = ui->tableView_type->selectionModel();
+        /// ---------------delegate -------------------begin
+        //修改delegate的某些样式单独修改
+        ftableview_delegate *d = new ftableview_delegate(ui->tableView_type);
+        ui->tableView_type->setProperty("outer_stylesheet", "tableView_subtype");
+        d->keepConnect(ui->tableView_type);
+        d->setCellMargin(2);
+        d->indexisEmptystillDraw = true;
+        ui->tableView_type->setItemDelegate(d);
+        /// ---------------delegate -------------------end
+        ui->tableView_type->fillAndAnimation(1, type_hcount);
+
+        ui->tableView_type->move(0,0);
+        ui->tableView_type->enablePressedLong();
+
+        //若是不显示大类
+        QFont font = ui->tableView_type->font();
+        font.setPixelSize(18);
+        ui->tableView_type->setFont(font);
+    }
+    {
+        ftableview_standmodel_sql *model_subtype = new ftableview_standmodel_sql(this);
+        ui->tableView_subtype->setModel(model_subtype);
+        model_subtype->selectionmodel = ui->tableView_subtype->selectionModel();
+        /// ---------------delegate -------------------begin
+        //修改delegate的某些样式单独修改
+        ftableview_delegate *d = new ftableview_delegate(ui->tableView_subtype);
+        ui->tableView_subtype->setProperty("outer_stylesheet", "tableView_subtype");
+        d->keepConnect(ui->tableView_subtype);
+        d->setCellMargin(2);
+        d->indexisEmptystillDraw = true;
+        ui->tableView_subtype->setItemDelegate(d);
+        /// ---------------delegate -------------------end
+
+        ui->tableView_subtype->fillAndAnimation(1, type_hcount);
+        ui->tableView_subtype->enablePressedLong();
+
+        connect(ui->tableView_type,SIGNAL(signalclick(QString)),model_subtype, SLOT(toinitBySqlother(QString)));
+        connect(ui->tableView_type,SIGNAL(timeout()),this,SLOT(totypeset()));
+        connect(ui->tableView_subtype,SIGNAL(timeout()),this,SLOT(totypeset()));
+        QFont font = ui->tableView_subtype->font();
+        font.setPixelSize(18);
+        ui->tableView_subtype->setFont(font);
+    }
+
+    //2 菜品
+    {
+        ftableview_standmodel_sql *model_dish = new ftableview_standmodel_sql(this, ftableview_standmodel_sql::TYPE_icon);
+        ui->tableView_dish->setModel(model_dish);
+        ui->tableView_dish->enablePressedLong();
+        model_dish->selectionmodel = ui->tableView_dish->selectionModel();
+        /// ---------------delegate -------------------begin
+        //修改delegate的某些样式单独修改
+        ftableview_delegate *d = new ftableview_delegate(ui->tableView_dish);
+        ui->tableView_dish->setProperty("outer_stylesheet", "tableView_dish");
+        d->setColorLight(3);
+        d->keepConnect(ui->tableView_dish);
+        ui->tableView_dish->setItemDelegate(d);
+        /// ---------------delegate -------------------end
+        ui->tableView_dish->fillAndAnimation(dish_vcount, dish_hcount);
+
+        connect(ui->tableView_subtype,SIGNAL(signalclick(QString)),model_dish, SLOT(toinitBySqlother(QString)));
+        connect(ui->tableView_type,SIGNAL(signalclick(QString)),model_dish,SLOT(toinitBySqlother2(QString)));
+        connect(ui->tableView_dish,SIGNAL(signalclick(QString)),this,SLOT(todishclick(QString)));
+        connect(ui->tableView_dish,SIGNAL(timeout(QModelIndex)),this,SLOT(toupdateDishImage(QModelIndex)));
+        connect(ui->tableView_dish,SIGNAL(timeout_pre()),this,SLOT(toupdateDishImage_add()));
+        connect(ui->tableView_dish,SIGNAL(timeout_next()),this,SLOT(toupdateDishImage_add()));
+
+        connect(ui->tableView_subtype,SIGNAL(signalclickNew(QModelIndex)),this, SLOT(totypeset()));
+        connect(ui->tableView_type,SIGNAL(signalclickNew(QModelIndex)),this,SLOT(totypeset()));
+        connect(ui->tableView_dish,SIGNAL(signalclickNew(QModelIndex)),this,SLOT(toupdateDishImage(QModelIndex)));
+    }
+
+    tablemodel = new fexpandmain_model_sqltablemodel_dd(this);
+    ui->tableView->setModel(tablemodel);
+
+    //logo
+    ui->label_logo->setPixmap(back_view_dialog::get_fastfdbacklogo());
+    QStringList ret_list = back_view_dialog::get_fastfdbacktext();
+    ui->label_text->setText(ret_list.value(0).trimmed());
+    ui->label_text->setAlignment(Qt::AlignBottom|Qt::AlignLeft);
+    ui->label_text->setStyleSheet("font-size:14pt;");
+    if(lds::MAIN_WINDOW_SIZE.width() == 800) {
+        ui->label_text->setStyleSheet("font-size:12pt;");
+    }
+    //
+    ui->frame_dish_bottom->setup(ui->tableView->verticalScrollBar());
+    {//其他f
+        lds_menu *menu=new lds_menu(this);
+        QWidgetAction *widgetaction=new QWidgetAction(ui->pushButton_other);
+        widgetaction->setDefaultWidget(ui->frame);
+        menu->addAction(widgetaction);
+        ui->pushButton_other->setMenu(menu);
+    }
+    {//编码
+        lds_menu *menu=new lds_menu(this);
+        ui->pushButton_bianma->setMenu(menu);
+        connect(menu,SIGNAL(aboutToShow()), this,SLOT(showBianMa()));
+    }
+    {
+        connect(ui->pushButton_allbillcancel,SIGNAL(clicked()),this,SLOT(toAllbillcancel()));
+        connect(ui->pushButton_change,SIGNAL(clicked()),this,SLOT(tochange()));
+        connect(ui->pushButton_del,SIGNAL(clicked()),this,SLOT(toquitdish()));
+        connect(ui->pushButton_exitbill,SIGNAL(clicked()),this,SLOT(toExitbill()));
+
+        connect(ui->pushButton_detail,SIGNAL(clicked()), this, SLOT(todetail()));
+        connect(ui->pushButton_present,SIGNAL(clicked()),this,SLOT(topresent()));
+        connect(ui->pushButton_mhangpay,SIGNAL(clicked()),this,SLOT(tomhangpay()));
+        connect(ui->pushButton_takebill,SIGNAL(clicked()),this,SLOT(toTakebill()));
+        connect(ui->pushButton_takeweight,SIGNAL(clicked()),this,SLOT(toTakeweight()));
+
+        connect(ui->pushButton_pay,SIGNAL(clicked()),this,SLOT(topaybill()));
+        connect(ui->pushButton_tuichu,SIGNAL(clicked()),this,SLOT(toTuichu()));
+        connect(ui->pushButton_member,SIGNAL(clicked()),this,SLOT(toMRead()));
+        connect(ui->pushButton_waimai,SIGNAL(clicked()),this,SLOT(towaimai()));
+        connect(ui->pushButton_waimaipay,SIGNAL(clicked()),this,SLOT(towaimaipay()));
+        connect(ui->pushButton_weixinwaimai,SIGNAL(clicked()),this,SLOT(toweixinwaimai()));
+        connect(ui->pushButton_weixinquitbill,SIGNAL(clicked()),this,SLOT(toweixinquitbill()));
+        connect(ui->pushButton_weixinbill_import,SIGNAL(clicked()),this,SLOT(toweixinbill_import()));
+    }
+    {
+        connect(ui->pushButton_sys_yingyedanju,SIGNAL(clicked()),this,SLOT(tosysyingyedanju()));
+        connect(ui->pushButton_sys_parameter,SIGNAL(languageChanged()),this,SLOT(toLanguageSwitch()));
+        connect(ui->pushButton_sys_parameter,SIGNAL(timeout()),this,SLOT(toLanguageSet()));
+        connect(ui->pushButton_sys_yingyeqingkuang,SIGNAL(clicked()),this,SLOT(tosysyingyeqingkuang()));
+        connect(ui->pushButton_sys_jiaoban,SIGNAL(clicked()),this,SLOT(tosysjiaoban()));
+        connect(ui->pushButton_sys_chongzhi,SIGNAL(clicked()),this,SLOT(tosyschongzhi()));
+        connect(ui->pushButton_sys_qukuan,SIGNAL(clicked()),this,SLOT(tosysqukuan()));
+        connect(ui->pushButton_sys_xiugaimima,SIGNAL(clicked()),this,SLOT(tosysxiugaimima()));
+        connect(ui->pushButton_sys_switchback,SIGNAL(clicked()),this,SLOT(tosysswitchback()));
+        connect(ui->pushButton_sys_kaiqianxiang,SIGNAL(clicked()),this,SLOT(tosyskaiqianxiang()));
+        connect(ui->pushButton_changyong,SIGNAL(clicked()), this ,SLOT(tochangyongcai()));
+        connect(ui->pushButton_sys_suoping, SIGNAL(clicked()),this,SLOT(tosyssuoping()));
+        connect(ui->pushButton_sys_guqing, SIGNAL(clicked()),this,SLOT(tosysguqing()));
+        connect(ui->pushButton_restaurant, SIGNAL(clicked()),this,SLOT(toRestaurant()));
+        connect(ui->lineEdit_scan, SIGNAL(returnPressed()), this, SLOT(toScanbar()));
+        connect(ui->lineEdit_scan, SIGNAL(signal_void_returnPressed()), this, SLOT(topaybill()));
+
+    }
+    //shortcut 同parent析构时析构
+    shortcut_map = new public_short_cut_map(this);
+    connect(shortcut_map, SIGNAL(signalKey(int)), ui->lineEdit_scan, SLOT(tokey(int)));
+}
+
+void w_scr_dish_main_view::toAllbillcancel()
+{
+
+}
+
+void w_scr_dish_main_view::tochange()
+{
+
+}
+
+void w_scr_dish_main_view::toquitdish()
+{
+
+}
+
+void w_scr_dish_main_view::toExitbill()
+{
+
+}
+
+void w_scr_dish_main_view::todetail()
+{
+
+}
+
+void w_scr_dish_main_view::topresent()
+{
+
+}
+
+void w_scr_dish_main_view::tomhangpay()
+{
+
+}
+
+void w_scr_dish_main_view::toTakebill()
+{
+
+}
+
+void w_scr_dish_main_view::toTakeweight()
+{
+
+}
+
+void w_scr_dish_main_view::topaybill()
+{
+
+}
+
+void w_scr_dish_main_view::toTuichu()
+{
+
+}
+
+void w_scr_dish_main_view::toMRead()
+{
+
+}
+
+void w_scr_dish_main_view::towaimai()
+{
+
+}
+
+void w_scr_dish_main_view::towaimaipay()
+{
+
+}
+
+void w_scr_dish_main_view::toweixinwaimai()
+{
+
+}
+
+void w_scr_dish_main_view::toweixinquitbill()
+{
+
+}
+
+void w_scr_dish_main_view::toweixinbill_import()
+{
+
+}
+
+void w_scr_dish_main_view::tosysyingyedanju()
+{
+
+}
+
+void w_scr_dish_main_view::toLanguageSwitch()
+{
+
+}
+
+void w_scr_dish_main_view::toLanguageSet()
+{
+
+}
+
+void w_scr_dish_main_view::tosysyingyeqingkuang()
+{
+
+}
+
+void w_scr_dish_main_view::tosysjiaoban()
+{
+
+}
+
+void w_scr_dish_main_view::tosyschongzhi()
+{
+
+}
+
+void w_scr_dish_main_view::tosysqukuan()
+{
+
+}
+
+void w_scr_dish_main_view::tosysxiugaimima()
+{
+
+}
+
+void w_scr_dish_main_view::tosysswitchback()
+{
+
+}
+
+void w_scr_dish_main_view::tosyskaiqianxiang()
+{
+
+}
+
+void w_scr_dish_main_view::tochangyongcai()
+{
+
+}
+
+void w_scr_dish_main_view::tosyssuoping()
+{
+
+}
+
+void w_scr_dish_main_view::tosysguqing()
+{
+
+}
+
+void w_scr_dish_main_view::toRestaurant()
+{
+
+}
+
+void w_scr_dish_main_view::toScanbar()
+{
+
+}
+
+void w_scr_dish_main_view::showBianMa()
+{
+    QMenu *m = qobject_cast<QMenu *>(this->sender());
+    if(m->actions().count() == 0) {
+        QWidgetAction *widgetaction=new QWidgetAction(m);
+        bianma_cook *b = new bianma_cook(m);
+        b->setFixedSize(500,300);
+        widgetaction->setDefaultWidget(b);
+        m->addAction(widgetaction);
+        ftableview_standmodel_sql *model_dish = static_cast<ftableview_standmodel_sql *>(ui->tableView_dish->_model);
+        connect(b,SIGNAL(edit_text(QString)), model_dish,SLOT(toinitBySqlother3(QString)));
+    }
+}
+
+void w_scr_dish_main_view::toupdateDishImage(const QModelIndex &index)
+{
+    QString ch_sub_typeno;
+    QModelIndex subtypeindex = ui->tableView_subtype->currentIndex();
+    QModelIndex typeindex = ui->tableView_type->currentIndex();
+    if(subtypeindex.isValid()) {
+        ch_sub_typeno = subtypeindex.data(Qt::UserRole + 1).toString();
+    } else if(typeindex.isValid()) {
+        QString ch_dish_typeno = typeindex.data(Qt::UserRole + 1).toString();
+        lds_query query;
+        query.exec(QString(" select ch_sub_typeno from cey_bt_dish_subtype where ch_dish_typeno = '%1'  ")
+                   .arg(ch_dish_typeno));
+        query.next();
+        ch_sub_typeno = query.recordValue(0).toString();
+    }
+    ///
+    updateDishImage(this,index, ui->tableView_dish->_model, ch_sub_typeno);
+    tablemodel->tablename_kvmap_clear_for_select_and_autoselect();
+
+}
+
+void w_scr_dish_main_view::toupdateDishImage_add()
+{
+    QString ch_sub_typeno;
+    QModelIndex subtypeindex = ui->tableView_subtype->currentIndex();
+    QModelIndex typeindex = ui->tableView_type->currentIndex();
+    if(subtypeindex.isValid()) {
+        ch_sub_typeno = subtypeindex.data(Qt::UserRole + 1).toString();
+    } else if(typeindex.isValid()) {
+        QString ch_dish_typeno = typeindex.data(Qt::UserRole + 1).toString();
+        lds_query query;
+        query.exec(QString(" select ch_sub_typeno from cey_bt_dish_subtype where ch_dish_typeno = '%1'  ")
+                   .arg(ch_dish_typeno));
+        query.next();
+        ch_sub_typeno = query.recordValue(0).toString();
+    }
+    ///
+    updateDishImage_add(this, ui->tableView_dish->_model, ch_sub_typeno);
+    tablemodel->tablename_kvmap_clear_for_select_and_autoselect();
+}
+
+void w_scr_dish_main_view::totypeset()
+{
+    w_bt_dish_base_typeset dialog(thisd());
+    dialog.setWindowTitle(tr("品类设置"));
+    lds_roundeddialog_rect_align(&dialog).exec();
+
+    update_type_subtype_view();
+}
+
+void w_scr_dish_main_view::updateDishImage(QWidget *parent, const QModelIndex &index, ftableview_standmodel_sql *model_dish, const QString &ch_sub_typeno, const QString &ch_groupno)
+{
+    lds_query query;
+    ftableview_standmodel_virtual *model_dish = ui->tableView_dish->_model;
+    if(index.isValid()){//点击非菜品出
+        if(index.data(Qt::UserRole + 1).toString() == "-3") goto tonew;
+
+        if((model_dish->rowCount() - 1) == index.row() && (model_dish->columnCount() - 1) == index.column()) {
+            switch(lds_messagebox::question(parent, tr("提示"), tr("菜品操作"),  tr("新增"), tr("修改"), tr("取消"))){
+            case 0:
+                goto tonew;
+                return;
+            case 1:
+                goto tochange;
+                return;
+            case 2:
+                return;
+            }
+        }
+        goto tochange;
+    }
+    goto tonew;
+    return;
+tochange:
+    {
+        QString ch_dishno = index.data(Qt::UserRole+1).toString();
+        w_bt_dish_base_change_by_ch_dishno dialog(parent, ch_dishno);
+        dialog.setWindowTitle(tr("修改"));
+        lds_roundeddialog_rect_align(&dialog).exec();
+        query.exec(QString(" select ch_dishno, CONCAT(vch_dishname,'\n',num_price),  from cey_bt_dish where ch_stopflag <> 'Y' and ch_tempflag <> 'Y' and ch_dishno = '%1' ")
+                   .arg(ch_dishno));
+        if(query.next()){
+            model_dish->setData(index, query.recordValue(1), Qt::UserRole);
+            QPixmap pixmap(model_dish->imagedishdir+"/"+ch_dishno);
+            if(pixmap.isNull()) {
+                model_dish->setData(index, ch_dishno, Qt::UserRole+2);
+            } else {
+                model_dish->setData(index, pixmap, Qt::UserRole+2);
+            }
+        } else {
+            qDebug("not ch_dishno match filter!");
+        }
+        model_dish->refreshcur();
+        return;
+    }
+tonew:
+    {
+        updateDishImage_add(parent, model_dish, ch_sub_typeno, ch_groupno);
+        model_dish->refreshcur();
+    }
+}
+
+void w_scr_dish_main_view::updateDishImage_add(QWidget *parent, ftableview_standmodel_sql *model_dish, const QString &ch_sub_typeno, const QString &ch_groupno)
+{
+    lds_query query;
+    QString ch_dish_typeno;
+    ftableview_standmodel_virtual *model_dish = ui->tableView_dish->_model;
+    query.exec(QString("SELECT ch_dish_typeno FROM hddpos.cey_bt_dish_subtype where ch_sub_typeno = '%1' ")
+               .arg(ch_sub_typeno));
+    query.next();
+    ch_dish_typeno = query.recordValue("ch_dish_typeno").toString();
+
+    w_bt_dish_base_new dialog(parent, ch_dish_typeno, ch_sub_typeno);
+    dialog.setWindowTitle(tr("新增"));
+    if(!ch_groupno.isEmpty()){
+        dialog.editorsetValue(dialog.ui->lineEdit_ch_groupno, ch_groupno, "ch_groupno");//ui->lineEdit_ch_groupno->setText(ch_groupno);
+        dialog.ui->lineEdit_ch_groupno->setEnabled(false);
+    }
+    lds_roundeddialog_rect_align(&dialog).exec();
+    model_dish->refreshcur();
+}
+
+void w_scr_dish_main_view::update_type_subtype_view()
+{
+    hideWidget(ui->tableView_type);
+    hideWidget(ui->tableView_subtype);
+
+    if(lds::sysconf->value("system_setting/dish_type_enabled", false).toBool()) {
+        ui->tableView_subtype->setFixedRCcount(1, model_subtype->columnCount(), tableView_subtype->horizontalHeader()->defaultSectionSize(), tableView_subtype->verticalHeader()->defaultSectionSize());
+        showWidget(ui->tableView_type);
+        showWidget(ui->tableView_subtype);
+    } else {
+        ui->tableView_subtype->setFixedRCcount(2, model_subtype->columnCount(), tableView_subtype->horizontalHeader()->defaultSectionSize(), tableView_subtype->verticalHeader()->defaultSectionSize());
+        showWidget(ui->tableView_subtype);
+        //        model_subtype->toinitBySqlother("");
+    }
+
+    //    model_type->refreshcur();
+    //    model_subtype->refreshcur();
+}
+
+void w_scr_dish_main_view::showWidget(QWidget *w)
+{
+    if(w->isHidden())
+        w->show();
+}
+
+void w_scr_dish_main_view::hideWidget(QWidget *w)
+{
+    if(!w->isHidden())
+        w->hide();
+}
+
+void w_scr_dish_main_view::keyPressEvent(QKeyEvent *e)
+{
+    if(shortcut_map) {
+        shortcut_map->keyPressQt(e);
+    }
+    QDialog::keyPressEvent(e);
+}

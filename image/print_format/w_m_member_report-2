@@ -1,0 +1,5 @@
+[conf]
+printtitle=true
+printtail=true
+vheaderlist=1, 4, 10
+vheaderwidthlist=5, 20, 5, 5, 8, 5, 5, 5, 5, 5, 5

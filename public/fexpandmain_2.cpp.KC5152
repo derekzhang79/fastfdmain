@@ -1,0 +1,2237 @@
+#include "fexpandmain_2.h"
+#include <QTableView>
+#include <QtDebug>
+#include <QHeaderView>
+#include <QSqlRecord>
+#include <QPainter>
+#include "ftableview_delegate.h"
+#include "public_sql.h"
+#include <QDateTime>
+#include "n_func.h"
+#include "fast_pay_smartorder_dialog.h"
+#include "lds_dialog_input.h"
+#include "take_weight.h"
+#include "ui_fexpandmain_payover.h"
+#include "w_bt_dish.h"
+#include <QSqlError>
+#include "w_bt_dish_base.h"
+#include <QScrollBar>
+#include "w_scr_dish_dish_change.h"
+#include "w_scr_dish_pay.h"
+#include "uo_rw_member.h"
+#include "w_m_member_list.h"
+#include "takeout_cook.h"
+#include "w_scr_dish_dish_quit.h"
+#include "take_cashier.h"
+#include "w_scr_dish_weixinwaimai.h"
+#include "w_scr_dish_weixin_quitbill.h"
+#include "w_scr_dish_weixinbill_import.h"
+#include "fexpandmain_model_sqltablemodel.h"
+#include "w_scr_dish_num_cook_dialog.h"
+#include "lds_dialog_switch.h"
+#include "w_scr_dish_group_dialog.h"
+#include "lds_pushbuttonwithnofocusline.h"
+#include "ui_w_bt_dish_new_dialog_2.h"
+#include "w_bt_dish_base.h"
+#include "w_scr_dish_cook.h"
+
+/**
+关于套菜数量修改的方案
+1.主套菜P， 子套菜Y
+2.P的数量和Y的数量独立，例如P:0.5, Y:1,2,5
+3.换菜品时，分：可替换菜【不会改变P的价格】、非可替换菜品【改变P的价格】
+4.加做法时，做法加价会加到P里
+5.P允许修改数量的条件：旗下Y没有做法、旗下Y没有换菜、没有折扣、没有落单、价格等于原价、非特价、非赠送
+*/
+
+void fexpandmain_2::showPayinfo(QWidget *tableview, QFrame *&pay, const QString &ch_payno, int pay_type)
+{
+    if(pay){delete pay; pay = 0;}
+    if(ch_payno.isEmpty()) return;
+    //1
+    lds_query query;
+    Ui_fexpandmain_payover *pui = new Ui_fexpandmain_payover;
+    pay = new QFrame(tableview);
+    pui->setupUi(pay);
+    int width = qMin(tableview->height(), tableview->width())*5/6;
+    pay->resize(width, width*3/4);
+    pay->move(lds::getParentCenterPopup(tableview, pay));
+
+    //2
+    query.exec(QString("select ifnull(sum(num_realamount), 0), ifnull(sum(num_payamount), 0), ifnull(sum(num_change), 0) from cey_u_checkout_detail where ch_payno = '%1' and ch_paymodeno <> 'ZZ'  and ch_paymodeno <> 'YY' ")//优惠和自动抹零
+               .arg(ch_payno));
+    query.next();
+    switch(pay_type){
+    case w_scr_dish_pay::OPERAT_PAY:
+        pui->label_desc->setText(tr("结算成功"));
+        break;
+    case w_scr_dish_pay::OPERAT_QUITBILL:
+        pui->label_desc->setText(tr("退菜退款"));
+        break;
+    case w_scr_dish_pay::OPERAT_WAIMAI:
+        pui->label_desc->setText(tr("外卖结算"));
+        break;
+    }
+
+    pui->label_num_payamount->setText(QString().sprintf("%0.2f",query.record().value(0).toFloat()));
+    pui->label_num_realamount->setText(QString().sprintf("%0.2f",query.record().value(1).toFloat()));
+    pui->label_num_change->setText(QString().sprintf("%0.2f",query.record().value(2).toFloat()));
+
+    pay->raise();
+    pay->show();
+
+
+    lds::DOUBLE_DATA ddata;
+    ddata.udpKey = lds::udp_pay_request;
+    ddata.p_desc = pui->label_desc->text();
+    ddata.p_receive = pui->label_num_realamount->text();
+    ddata.p_pay = pui->label_num_payamount->text();
+    ddata.p_change = pui->label_num_change->text();
+
+    doublescreensenddataByconf(ddata);
+}
+
+fexpandmain_2::fexpandmain_2(QWidget *parent) :
+    frontViewDialog_virtual(parent)
+{
+
+    this->hide();
+
+    tableView_type = new ftableview;
+    tableView_type->setFocusPolicy(Qt::NoFocus);
+    tableView_subtype = new ftableview;
+    tableView_subtype->setFocusPolicy(Qt::NoFocus);
+    tableView_dish = new ftableview;
+    tableView_dish->setFocusPolicy(Qt::NoFocus);
+
+    tablemodel = 0;
+    //    model_type = new ftableview_standmodel_sql;
+    //    model_subtype = new ftableview_standmodel_sql;
+    //    model_dish = new ftableview_standmodel_sql;
+
+    deskinfo = new frame_deskinfo;
+    deskinfo->setFocusPolicy(Qt::NoFocus);
+    frame_dish_bottom = new fexpandmain_dish_btn;
+    frame_dish_bottom->setFocusPolicy(Qt::NoFocus);
+    tableView = new fexpandmain_tableview;
+    tableView->setFocusPolicy(Qt::NoFocus);
+
+    ///上一页按钮
+    frame_dish_bottom->setFixedHeight(30);
+    QPushButton *up = new QPushButton;
+    up->setFocusPolicy(Qt::NoFocus);
+    up->setProperty("outer_stylesheet", "pushbutton_up");
+    up->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    QPushButton *down = new QPushButton;
+    down->setFocusPolicy(Qt::NoFocus);
+    down->setProperty("outer_stylesheet", "pushbutton_down");
+    down->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+
+    frame_dish_bottom->setup(QList<QPushButton*> ()  << up << down);
+    ///~上一页按钮
+    restaurat_pay = 0;
+    setrestaurantshow(w_scr_dish_pay::TYPE_RESTAURANT);
+    paywidget = 0;
+
+    /////////
+    tablemodel = 0;
+    fexpandmain_delegate *d;
+    d = new fexpandmain_delegate;
+    d->keepConnect(tableView);
+    tableView->horizontalHeader()->setStretchLastSection(true);
+    tableView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    tableView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    tableView->setAlternatingRowColors(false);
+    tableView->setShowGrid(false);
+    tableView->setItemDelegate(d);
+    tableView->setEditTriggers(QTableView::NoEditTriggers);
+
+    QStringList xy = lds::sysconf->value("system_setting/qt_iconsize").toString().split("x");
+    int dish_hcount = qMin(qMax(xy.value(0).toInt(), 4), 20);
+    int dish_vcount = qMin(qMax(xy.value(1).toInt(), 4), 20);
+
+    QString cc = lds::sysconf->value("system_setting/qt_type_column_count").toString();
+    int type_hcount  =qMin(qMax(4, cc.toInt()), 20);
+    int type_height = lds::QT_FIXED_HEIGHT_BOTTOM;
+
+    int dish_width;
+//    dish_width = lds::MAIN_WINDOW_SIZE.width() - (qMin(1024, lds::MAIN_WINDOW_SIZE.width()) / 3) - 0;
+    if(lds::FULL_WINDOW_SIZE.width() == 1920) {
+//        dish_width = lds::MAIN_WINDOW_SIZE.width()*3/4;
+    }
+    int dish_height = lds::MAIN_WINDOW_SIZE.height() - 2 * type_height - lds::QT_FIXED_HEIGHT_BOTTOM;
+    if(lds::MAIN_WINDOW_SIZE.width() == 1366) {
+//        dish_width = lds::MAIN_WINDOW_SIZE.width() - (qMin(1024, lds::MAIN_WINDOW_SIZE.width()) / 3) - lds::QT_FIXED_BETWEEN;
+        dish_height = lds::MAIN_WINDOW_SIZE.height() - 2 * type_height - 0;
+    }
+    dish_width = lds::MAIN_WINDOW_SIZE.width() - lds::PAY_LEFT_SPACE;
+
+    int dish_cell_width = dish_width / dish_hcount;
+    int dish_cell_height = dish_height / dish_vcount;
+    int type_cell_width = dish_width / type_hcount;
+    //////////////////
+    //4 大类
+    {
+        model_type = new ftableview_standmodel_sql;
+        tableView_type->setModel(model_type);
+        model_type->selectionmodel = tableView_type->selectionModel();
+        /// ---------------delegate -------------------begin
+        //修改delegate的某些样式单独修改
+        ftableview_delegate *d = new ftableview_delegate(tableView_type);
+        tableView_type->setProperty("outer_stylesheet", "tableView_subtype");
+        d->keepConnect(tableView_type);
+        d->border_top_bottom = 2;
+        d->indexisEmptystillDraw = true;
+        tableView_type->setItemDelegate(d);
+        /// ---------------delegate -------------------end
+        tableView_type->setFixedRCcount(1, type_hcount, type_cell_width, type_height);
+        tableView_type->move(0,0);
+        tableView_type->enablePressedLong();
+
+        //若是不显示大类
+        QFont font = tableView_type->font();
+        font.setPixelSize(18);
+        tableView_type->setFont(font);
+    }
+    //3 小类
+    {
+        model_subtype = new ftableview_standmodel_sql;
+        tableView_subtype->setModel(model_subtype);
+        model_subtype->selectionmodel = tableView_subtype->selectionModel();
+        /// ---------------delegate -------------------begin
+        //修改delegate的某些样式单独修改
+        ftableview_delegate *d = new ftableview_delegate(tableView_subtype);
+        tableView_subtype->setProperty("outer_stylesheet", "tableView_subtype");
+        d->keepConnect(tableView_subtype);
+        d->border_top_bottom= 2;
+        d->indexisEmptystillDraw = true;
+        tableView_subtype->setItemDelegate(d);
+        /// ---------------delegate -------------------end
+
+        tableView_subtype->setFixedRCcount(1, type_hcount, type_cell_width, type_height);
+        tableView_subtype->enablePressedLong();
+
+        connect(tableView_type,SIGNAL(signalclick(QString)),model_subtype, SLOT(toinitBySqlother(QString)));
+        connect(tableView_type,SIGNAL(timeout()),this,SLOT(totypeset()));
+        connect(tableView_subtype,SIGNAL(timeout()),this,SLOT(totypeset()));
+        QFont font = tableView_subtype->font();
+        font.setPixelSize(18);
+        tableView_subtype->setFont(font);
+    }
+    //2 菜品
+    {
+        model_dish = new ftableview_standmodel_sql(0, ftableview_standmodel_sql::TYPE_icon);
+        tableView_dish->setModel(model_dish);
+        tableView_dish->enablePressedLong();
+        model_dish->selectionmodel = tableView_dish->selectionModel();
+        /// ---------------delegate -------------------begin
+        //修改delegate的某些样式单独修改
+        ftableview_delegate *d = new ftableview_delegate(tableView_dish);
+        tableView_dish->setProperty("outer_stylesheet", "tableView_dish");
+        d->keepConnect(tableView_dish);
+        tableView_dish->setItemDelegate(d);
+        /// ---------------delegate -------------------end
+        tableView_dish->setFixedRCcount(dish_vcount, dish_hcount, dish_cell_width, dish_cell_height);
+        connect(tableView_subtype,SIGNAL(signalclick(QString)),model_dish, SLOT(toinitBySqlother(QString)));
+        connect(tableView_type,SIGNAL(signalclick(QString)),model_dish,SLOT(toinitBySqlother2(QString)));
+        connect(tableView_dish,SIGNAL(signalclick(QString)),this,SLOT(todishclick(QString)));
+        connect(tableView_dish,SIGNAL(timeout(QModelIndex)),this,SLOT(toupdateDishImage(QModelIndex)));
+        connect(tableView_dish,SIGNAL(timeout_pre()),this,SLOT(toupdateDishImage_add()));
+        connect(tableView_dish,SIGNAL(timeout_next()),this,SLOT(toupdateDishImage_add()));
+    }
+
+    //!connect
+    connect(deskinfo->label_total,SIGNAL(clicked()),this,SLOT(tosetsmartorder()));
+    connect(down, SIGNAL(clicked()),this,SLOT(todown()));
+    connect(up,SIGNAL(clicked()),this,SLOT(toup()));
+    connect(tableView->verticalScrollBar(), SIGNAL(rangeChanged(int,int)), this,SLOT(to_update_up_down_enabled(int, int)));
+    connect(tableView, SIGNAL(signal_dishname_rect_release(QModelIndex)),this, SLOT(todetail()));
+    connect(tableView, SIGNAL(signal_suit_fold(QModelIndex)),this,SLOT(to_suit_fold(QModelIndex)));
+}
+
+fexpandmain_2::~fexpandmain_2()
+{
+    qDebug() << __LINE__ << __FUNCTION__;
+
+    if(paywidget)  delete paywidget;
+
+    delete tableView_type;
+    delete tableView_subtype;
+    delete tableView_dish;
+
+    delete model_type;
+    delete model_subtype;
+    delete model_dish;
+
+    delete deskinfo;
+    delete frame_dish_bottom;
+    delete tableView;
+
+    qDebug() << __LINE__ << __FUNCTION__;
+}
+
+
+void fexpandmain_2::setrestaurantshow(int type)
+{
+    bool isshow = type & w_scr_dish_pay::TYPE_RESTAURANT;
+    _type = type;
+    //1
+    deskinfo->label_servant->setVisible(isshow);
+    deskinfo->label_deskno->setVisible(isshow);
+    deskinfo->label_ch_billno->setVisible(isshow);
+    deskinfo->label_7->setVisible(false);
+    deskinfo->label_11->setVisible(isshow);
+    deskinfo->label->setVisible(isshow);
+    deskinfo->label_opentableman->setVisible(isshow);
+    deskinfo->label_5->setVisible(isshow);
+    deskinfo->label_10->setVisible(isshow);
+    deskinfo->label_personnum->setVisible(false);
+
+    //单号不在显示
+    deskinfo->label_ch_billno->hide();
+    deskinfo->label->hide();
+
+    int rowheight = 61;
+    int count;
+
+
+    if(isshow) count = 6;
+    else count = 7;
+
+    if(lds::FULL_WINDOW_SIZE.height() == 600){//800x600--600/7=87
+        count = 7;
+    } else if(lds::FULL_WINDOW_SIZE.height() == 768){//1024x768   768/10 = 76.8
+        count = 10;
+    } else if(lds::FULL_WINDOW_SIZE.height() == 1080){//1920x1080 1080/14 = 76
+        count = 14;
+    } else if(lds::FULL_WINDOW_SIZE.height() == 1440){
+        count = 19;
+    }
+    if(isshow) count --;
+
+    //    tableView->setFixedHeight(rowheight * count);
+    if(isshow)
+        deskinfo->setFixedHeight(lds::QT_FIXED_HEIGHT_BOTTOM * 3.5+lds::BORDER_DEFAULT_HEIGHT);
+    else
+        deskinfo->setFixedHeight(lds::QT_FIXED_HEIGHT_BOTTOM * 2+lds::BORDER_DEFAULT_HEIGHT);
+    tableView->verticalHeader()->setDefaultSectionSize(rowheight);
+}
+
+QVBoxLayout *fexpandmain_2::get_tableView_layout()
+{
+    QVBoxLayout *vlayout1 = new QVBoxLayout;
+    vlayout1->setMargin(0);
+    vlayout1->setSpacing(0);
+    vlayout1->addWidget(tableView_type);
+    vlayout1->addWidget(tableView_subtype);
+    vlayout1->addWidget(tableView_dish);
+
+
+    update_type_subtype_view();
+    return vlayout1;
+}
+
+void fexpandmain_2::initData(const QString &ch_billno)
+{
+    //属性菜品信息
+    torefresh_control(ch_billno);
+    torefresh_dish();
+    return;
+}
+
+void fexpandmain_2::torefresh_dish()
+{
+    //刷新 type subtype dish
+    QString operfileter = QString(" ('0000'='%1' or 0 = (select count(*) from cey_bt_dish_type_oper b where b.vch_operid = '%1' limit 0, 1) or ch_dish_typeno in(select ch_dish_typeno from cey_bt_dish_type_oper b where b.vch_operid='%1' and b.ch_state ='Y')) ")
+            .arg(public_sql::gs_operid);
+    model_dish->imagedishdir = lds::sysconf->value("system_setting/bofanglujing").toString();
+    model_type->sql = QString("select '%1','%'  union (select vch_dish_typename,ch_dish_typeno  from cey_bt_dish_type where "+operfileter+")")
+            .arg(tr("全部"));
+    model_type->clearCache();
+    model_type->toinit();
+
+    model_subtype->sql = "select vch_sub_typename, ch_sub_typeno  from cey_bt_dish_subtype";
+    model_subtype->sqlother = model_subtype->sql+"  where ch_dish_typeno like '%1%' and"+operfileter;
+    model_subtype->sql = model_subtype->sql+" where"+operfileter;
+    model_subtype->clearCache();
+    model_subtype->toinitBySqlother("");
+
+    QString qt_show_ingredient;
+    if(wxmanager::f_get_sysparm("qt_show_ingredient","0") == "0") {
+        qt_show_ingredient = " and ifnull(ch_material_flag, '') <> 'Y' ";
+    }
+
+    model_dish->sql =
+            " select "
+            " CONCAT(a.vch_dishname,'\n', a.num_price)"//描述
+            ", a.ch_dishno "//品码
+            ", a.ch_dishno "//图片路径
+            ", count(a.ch_groupno) "
+            ", if(a.item_flag = 'Y', ifnull( (select num_num from cey_st_material_num where ch_materialno = a.ch_dishno), 0) , '') as dish_st_remain"//库存剩余
+            ", '' as dishcount "
+            ", '' as ischecked "
+            ", num_item_warn "
+            ", (select GROUP_CONCAT(concat(AA.ch_itemno, '/', ifnull(BB.num_num, ''), '/', CC.num_item_warn)) from material_bt_dish AA , cey_st_material_num BB, cey_bt_dish CC where AA.ch_itemno = BB.ch_materialno and AA.ch_itemno = CC.ch_dishno and ifnull(CC.item_flag, '') = 'Y' and AA.ch_dishno = a.ch_dishno) "
+            " from cey_bt_dish a ";
+
+
+    if(lds::sysconf->value("fast_pay_smartorder_Dialog/ischeck",false).toBool()){
+        model_dish->sql +=
+                " left join"
+                "    ("
+                + fast_pay_smartorder_Dialog::get_sql_select_union_dishcount_ch_dishno()+
+                ")  b "
+                " on a.ch_dishno = b.ch_dishno  "
+                ;
+    }
+    model_dish->sql += " where a.ch_stopflag <> 'Y' and a.ch_tempflag <> 'Y' ";
+    model_dish->sql += qt_show_ingredient;
+    model_dish->sql += " %1 Group by a.ch_groupno ";
+    if(lds::sysconf->value("fast_pay_smartorder_Dialog/ischeck",false).toBool()){
+        model_dish->sql += "order by b.dishcount desc ";
+    }
+    model_dish->sqlother = model_dish->sql.arg("  and ch_sub_typeno = '%1' and"+operfileter);
+    model_dish->sqlother2 = model_dish->sql.arg("  and ch_dish_typeno like '%1%' and"+operfileter);
+    model_dish->sqlother3 = model_dish->sql.arg("  and (a.ch_dishno like '%1%' or vch_spell like '%1%' ) and"+operfileter);
+    model_dish->sqlother4 = model_dish->sql.arg("  and (ch_off = 'Y' ) and"+operfileter);
+    model_dish->sql = model_dish->sql.arg(" and"+operfileter);
+    model_dish->clearCache();
+
+    //菜品重新初始化
+    QTimer::singleShot(100, model_dish, SLOT(toinit()));
+}
+
+void fexpandmain_2::torefresh_control(const QString &ch_billno)
+{
+    //tablemodel
+    if(tablemodel == 0) {
+        tablemodel = new fexpandmain_model_sqltablemodel_dd(this);
+        tablemodel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+        tablemodel->setTable("cey_u_orderdish");
+        tablemodel->save_set_header("ch_dishno", tr("名称"));
+        tablemodel->save_set_header("num_num", tr("数量"));
+        tablemodel->save_set_header("ch_suitflag", tr("是否套菜"));///用于全局
+        ///抓取促销信息  vch_parameter, vch_value
+        tablemodel->tablename_kvmap_insert("cey_sys_parameter", "vch_parameter", "vch_value", " vch_parameter like 'promotion_setting%' ", false,
+                                           lds_model_sqltablemodel::SELECT_AUTO_REFRESH_KEY);
+        /// ～抓取促销信息
+
+        connect(tablemodel, SIGNAL(rowsInserted(QModelIndex, int, int )), this,SLOT(update_pay_info_set_empty()));
+        connect(tablemodel, SIGNAL(signals_num_total_change(QString,QString)),this,SLOT(to_update_num_total(QString, QString)));
+    }
+    ///清空 主套菜 折叠
+    tablemodel->row_fold_map_RELEASE(tableView);
+    ///~清空 主套菜 折叠
+    ///
+
+    tablemodel->select(ch_billno, this);
+    if(tableView->model() == 0) {
+        tableView->setModel(tablemodel);
+        tableView->showColumns(QList<int>() << 0);
+        tableView->enablePressedLong(fexpandmain_tableview::timeout_BeforePressed);
+        tablemodel->setHeaderData(0, Qt::Horizontal, "int_id");
+        tableView->setSelectionModel(new QItemSelectionModel(tablemodel));
+    }
+    ///清空 主套菜 折叠
+    if(fexpandmain::qt_Y_dish_fold == "1") {
+        for(int k = 0; k < tableView->verticalHeader()->count(); k++){
+            QString ch_suitflag = tablemodel->model_data(k, "ch_suitflag").toString();
+            if("P" == ch_suitflag) {
+                tablemodel->row_fold_map.insert(k, true);
+            }
+            if("Y" == ch_suitflag) {
+                tableView->hideRow(k);
+            }
+        }
+    }
+
+    ///~清空 主套菜 折叠
+
+    //更新title
+    lds_query query;
+    query.exec(QString("SELECT ch_tableno, vch_operid, vch_waiter, int_person FROM cey_u_table where ch_billno = '%1' ")
+               .arg(ch_billno));
+    query.next();
+
+    deskinfo->label_ch_billno->setText(ch_billno);
+    deskinfo->label_deskno->setText(query.record().value("ch_tableno").toString());
+    deskinfo->label_opentableman->setText(query.record().value("vch_operid").toString());
+    deskinfo->label_personnum->setText(query.record().value("int_person").toString());
+    deskinfo->label_servant->setText(query.record().value("vch_waiter").toString());
+
+    to_payfor_info("", w_scr_dish_pay::OPERAT_NONE);
+}
+
+QString fexpandmain_2::get_ch_billno()
+{
+    return tablemodel->_ch_billno;
+}
+
+fexpandmain_delegate::fexpandmain_delegate(QObject *parent) : QStyledItemDelegate(parent)
+{
+}
+
+void fexpandmain_delegate::keepConnect(fexpandmain_tableview *tableview)
+{
+    divColor = &tableview->divColor;
+    nameColor = &tableview->nameColor;
+    nameSubColor = &tableview->nameSubColor;
+    border = &tableview->border;
+    defColor = &tableview->defColor;
+    itemBgColor = &tableview->itemBgColor;
+}
+
+void fexpandmain_delegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    if(index.column() == 0) {
+        drawDish(painter, option.rect, index, option.state & QStyle::State_Selected);
+    } else {
+        QStyledItemDelegate::paint(painter, option, index);
+    }
+}
+
+void fexpandmain_delegate::drawDish(QPainter *painter, const QRect &option_rect, const QModelIndex &index, bool isselected) const
+{
+    const fexpandmain_model_sqltablemodel_dd *tablemodel = static_cast<const fexpandmain_model_sqltablemodel_dd *>(index.model());
+
+    const QRect rect = option_rect.adjusted(*border, *border, -*border,-*border);
+
+    int rect0_h = rect.height() * 6.0 / 10.0;
+    int margin_left = rect0_h+*border;
+    QRect rect0 = QRect(rect.x(), rect.y(), rect0_h, rect0_h);
+    ///菜品，选框
+    QRect rect1 = rect.adjusted(margin_left, 0, -(option_rect.width()-margin_left)*1.0/3.0, -rect.height()*6.0/10.0);//菜品名称
+    QRect rect4 = rect.adjusted(margin_left+(option_rect.width()-margin_left)*1.0/3.0, 0 ,0 - *border * 5, -rect.height()*6.0/10.0);//合计
+    QRect rect2 = rect.adjusted(margin_left, rect.height()*4.0/10.0, 0, -rect.height()*3.0/10.0);//数量
+    QRect rect3 = rect.adjusted(margin_left, rect.height()*7.0/10.0, 0, 0);//做法
+    ///折叠框
+    QRect rect5 = rect.adjusted(margin_left + (option_rect.width()-margin_left)*3.0/4.0, rect.height()*7.0/10.0, 0, 0);//折叠框
+
+    painter->setRenderHint(QPainter::Antialiasing);
+    QLinearGradient linear;
+    QFont font = painter->font();
+    int row = index.row();
+
+    //圆圈
+    font.setPixelSize(rect0.height()*2/5.0);
+    painter->setFont(font);
+    int int_id = tablemodel->model_data(row, "int_id").toInt();
+    QString ch_suitflag = tablemodel->model_data(row, "ch_suitflag").toString();
+    if(isselected) {
+        painter->fillRect(option_rect, QColor("#ff650b"));
+        painter->setBrush(QColor(getCurNameColor(ch_suitflag)));
+        painter->setPen(Qt::NoPen);
+        painter->drawEllipse(rect0.adjusted(5,5,-5,-5));
+        painter->setPen("white");
+    } else {
+        painter->setPen(*defColor);
+        painter->fillRect(option_rect, *itemBgColor);
+    }
+    painter->drawText(rect0, int(Qt::AlignCenter),QString::number(int_id));
+
+    ///线条
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(*divColor);
+    //左边线
+    if(tablemodel->isDirty(index)) {
+        painter->drawRect(option_rect.adjusted(0, *border*3, -(option_rect.width()-*border),-*border*3));
+    }
+    //右边线
+    painter->drawRect(QRect(option_rect.width() - *border, option_rect.y(), *border, option_rect.height()));
+
+    //下边黑线
+    painter->drawRect(option_rect.adjusted(0, option_rect.height()-*border, 0, 0));
+
+    ///内容
+    //菜品名称
+    QString ch_dishno = tablemodel->model_data(row, "ch_dishno").toString();
+    QString vch_dishname = tablemodel->get_vch_dishname_by_map(ch_dishno);
+    painter->save();
+    painter->setPen(Qt::NoPen);
+    if(isselected){
+        linear.setColorAt(0, QColor("white"));
+        linear.setColorAt(1, QColor("white"));
+    } else {
+        linear.setColorAt(0, QColor(getCurNameColor(ch_suitflag)));
+        linear.setColorAt(1, QColor(getCurNameColor(ch_suitflag)));
+    }
+    painter->setBrush(linear);
+    painter->setOpacity(0.5);
+    painter->drawRoundedRect(rect1, rect1.height()*1.0/3.0, rect1.height()*1.0/3.0);
+    painter->setOpacity(1.0);
+    rect1 = rect1.adjusted(*border, *border, -*border, -*border);
+    painter->drawRoundedRect(rect1, rect1.height()*1.0/3.0, rect1.height()*1.0/3.0);
+
+
+    painter->setPen(isselected?"#ff650b":"white");
+    painter->drawText(rect1, int(Qt::AlignCenter), vch_dishname);
+    painter->restore();
+
+    //合计
+    float total = 0;
+    if(tablemodel->model_data(row, "ch_presentflag").toString() == "Y") {
+        total = 0;
+    } else {
+        total = tablemodel->model_data_NIBOLAN(row, "((num_num-num_back)*num_price+num_price_add)*int_discount/100.0");
+    }
+    painter->setPen(*defColor);
+    painter->drawText(rect4, int(Qt::AlignVCenter | Qt::AlignRight), QString("%1").arg(total, 0, 'f', public_sql::bp_fmt_amount_dec));
+
+    //单价数量
+    float dish_num = tablemodel->model_data_NIBOLAN(row, "num_num-num_back");
+    float num_price = tablemodel->model_data_NIBOLAN(row, "num_price");
+    font.setPixelSize(rect2.height()*3/4.0);
+    painter->setFont(font);
+    painter->drawText(rect2, int(Qt::AlignLeft), QString("%1%2x%3")
+                      .arg(fexpandmain::unitprefix)
+                      .arg(num_price, 0, 'f', public_sql::bp_fmt_price_dec)
+                      .arg(dish_num, 0, 'f', public_sql::bp_fmt_num_dec)
+                      );
+
+    //做法
+    QString text = tablemodel->get_dish_desc(row);
+
+    font.setPixelSize(rect3.height()*3/4.0);
+    painter->setFont(font);
+    painter->drawText(rect3, int(Qt::AlignTop), text);
+
+    if(ch_suitflag == "P") {
+        QPixmap p;
+        if(tablemodel->row_fold_map.value(row, fexpandmain::qt_Y_dish_fold == "1")){
+            p =  QPixmap(":/image/widgets_pic/xxu.png");
+        } else {
+            p =  QPixmap(":/image/widgets_pic/xxd.png");
+        }
+        painter->drawPixmap(QStyle::alignedRect(Qt::LeftToRight, Qt::AlignCenter, p.size(), rect5), p);
+    }
+}
+
+QColor fexpandmain_delegate::getCurNameColor(const QString &ch_suitflag) const
+{
+    return ch_suitflag == "Y" ? *nameSubColor : *nameColor;
+}
+
+void fexpandmain_2::todishclick(const QString &ch_dishno)
+{
+    int int_discount = 100;
+    QString dishno = ch_dishno;
+    //分组
+    if(w_scr_dish_group_dialog::check_group(dishno)) {
+        w_scr_dish_group_dialog *dialog = this->findChild<w_scr_dish_group_dialog *>("w_scr_dish_group_dialog");
+        if(dialog) {
+            dialog->refresh(dishno);
+        }
+        if(dialog == 0) {
+            dialog = new w_scr_dish_group_dialog(this);
+            dialog->setObjectName("w_scr_dish_group_dialog");
+            dialog->setWindowTitle(tr("菜品分组"));
+            dialog->refresh(dishno);
+        }
+        if(QDialog::Accepted != lds_roundeddialog_rect_align(dialog).exec()){
+            return;
+        }
+
+        dishno = dialog->ret_ch_dishno;
+    }
+
+    //做法
+    QString vch_print_memo;
+    if(tablemodel->can_cook_pop(dishno)) {
+        w_scr_dish_cook dialog(dishno, this);
+        dialog.setWindowTitle(tr("做法"));
+        if(QDialog::Accepted != lds_roundeddialog_rect_align(&dialog).exec()){
+            return;
+        }
+        vch_print_memo = dialog.vch_print_memo;
+    }
+
+    //价格
+    float num_price = 0;
+    if(!get_num_price_when_dishclick(dishno, num_price, int_discount)) {
+        return;
+    }
+
+    //点菜
+    toadddish(dishno, vch_print_memo, num_price, int_discount);
+}
+
+bool fexpandmain_2::add_dish_by_scanbar(const QString &pay_barcode)
+{
+    QString _price;
+    QString _weight;
+    QString _amount;
+    lds_query query;
+    QString ch_dishno;
+    QDateTime dt = n_func::f_get_sysdatetime();
+    QString  vch_barcode;
+
+    //条码秤码
+    if(CommonHeader::barcode_scale_resolve(vch_barcode,_price,_weight,_amount,pay_barcode)){
+        query.exec(QString("select * from cey_bt_dish a  where a.ch_stopflag <> 'Y' and a.vch_barcode='%1' ")
+                   .arg(vch_barcode));
+        if(query.next()) {
+            if(!_weight.isEmpty()&&!_amount.isEmpty()){
+                float f  = 0;
+                if(_weight.toFloat() != 0) f = _amount.toFloat() /_weight.toFloat();
+                _price=QString::number(f);
+            }
+
+            if(_price.isEmpty()){
+                _price=QString::number(query.record().value("num_price").toFloat());
+            } else {
+                _price=QString::number(_price.toFloat());
+            }
+
+            if(_weight.isEmpty()&&!_amount.isEmpty()){
+                float f  = 0;
+                if(_price.toFloat() != 0) f = _amount.toFloat() /_price.toFloat();
+                _weight=QString::number(f,  'f', public_sql::bp_fmt_num_dec);
+            }
+
+            if(!_weight.isEmpty()&&_amount.isEmpty()){
+                _amount=QString::number(_weight.toFloat()*_price.toFloat(), 'f', public_sql::bp_fmt_price_dec);
+            }
+
+            if(_weight.isEmpty()&&_amount.isEmpty()){
+                _weight="1";
+                _amount=QString::number(_weight.toFloat()*_price.toFloat(), 'f', public_sql::bp_fmt_price_dec);
+            }
+            ch_dishno = query.record().value("ch_dishno").toString();
+
+            tablemodel->keepdata_disabled_begin_rowcount();
+            todish_fill_data(query, dt);
+            tablemodel->model_data_set(tablemodel->rowCount() - 1, "num_num", _weight);
+            tablemodel->model_data_set(tablemodel->rowCount() - 1, "num_price", _price);
+            tablemodel->model_data_set(tablemodel->rowCount() - 1, "ch_suitflag",  "N");
+            tablemodel->keepdata_submit();
+
+            return true;
+        }
+    }
+
+    vch_barcode = pay_barcode;
+    //条码
+    query.exec(QString("select ch_dishno from cey_bt_dish  a where a.ch_stopflag <> 'Y' and  vch_barcode = '%1'  ")
+               .arg(vch_barcode));
+    if(query.next()){
+        ch_dishno = query.record().value("ch_dishno").toString();
+        todishclick(ch_dishno);
+        return true;
+    }
+    //编码
+    query.exec(QString("select ch_dishno from cey_bt_dish  a where a.ch_stopflag <> 'Y' and ch_dishno = '%1' ")
+               .arg(vch_barcode));
+    if(query.next()){
+        ch_dishno = query.record().value("ch_dishno").toString();
+        todishclick(ch_dishno);
+        return true;
+    }
+    return false;
+}
+
+bool fexpandmain_2::get_num_price_when_dishclick(const QString &ch_dishno, float &num_price, int &int_discount)
+{
+    //判断促销
+    lds_query query;
+    query.exec(QString(" select num_price , ch_curprice, num_m_price from cey_bt_dish where ch_dishno = '%1' ").arg(ch_dishno));
+    query.next();
+    num_price = query.record().value("num_price").toFloat();
+    float num_m_price = query.record().value("num_m_price").toFloat();
+    QString ch_curprice = query.record().value("ch_curprice").toString();
+    if(tablemodel->vch_membernod.ismprice()) {
+        num_price = num_m_price;
+    }
+    if(tablemodel->vch_membernod.ismdiscount()) {
+        if(tablemodel->get_ch_discount_by_map(ch_dishno) == "Y") {
+            int_discount = this->tablemodel->vch_membernod.int_discount;
+        }
+    }
+    //
+    QVector<int> promotion_week_days;
+    bool promotion_enabled = false;
+    QDate promotion_setting_date =   tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_date").toDate();
+    QDate promotion_setting_date_2 =   tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_date_2").toDate();
+
+    QTime promotion_setting_am =   tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_am").toTime();
+    QTime promotion_setting_am_2 =   tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_am_2").toTime();
+    QTime promotion_setting_pm =   tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_pm").toTime();
+    QTime promotion_setting_pm_2 =   tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_pm_2").toTime();
+
+    if(tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_Fri").toBool())promotion_week_days.append(5);
+    if(tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_Mon").toBool())promotion_week_days.append(1);
+    if(tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_Sat").toBool())promotion_week_days.append(6);
+    if(tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_Sun").toBool())promotion_week_days.append(7);
+
+    if(tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_Thur").toBool())promotion_week_days.append(4);
+    if(tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_Tues").toBool())promotion_week_days.append(2);
+    if(tablemodel->tablename_kvmap_value_direct("cey_sys_parameter", "promotion_setting_Wed").toBool())promotion_week_days.append(3);
+    QDateTime sqldt = n_func::f_get_sysdatetime();
+    QDate curdate = sqldt.date();
+    QTime curtime = sqldt.time();
+    if(curdate >= promotion_setting_date && curdate <= promotion_setting_date_2) {
+        if(promotion_week_days.contains(curdate.dayOfWeek())){
+            if(promotion_setting_am <= curtime && curtime <= promotion_setting_am_2) {
+                promotion_enabled = true;
+            }
+            if(promotion_setting_pm <= curtime && curtime <= promotion_setting_pm_2) {
+                promotion_enabled = true;
+            }
+        }
+    }
+
+    //时间符合促销
+    if(promotion_enabled) {
+        query.exec(QString(" select num_price, num_special_price, num_m_price, ch_special_type, ch_special_type2 from cey_bt_dish where ch_dishno = '%1' ")
+                   .arg(ch_dishno));
+        query.next();
+        num_price = query.record().value("num_price").toFloat();
+        float num_special_price = query.record().value("num_special_price").toFloat();
+        float num_m_price = query.record().value("num_m_price").toFloat();
+        QString ch_special_type = query.record().value("ch_special_type").toString();//默认原价\默认特价\可选特价
+        //        QString ch_special_type2 = query.record().value("ch_special_type2").toString();//默认原价\第二杯半价
+
+        ///1 策略1 选择价格
+        if("1" == ch_special_type) {
+            num_price = qMin(num_special_price, num_price);
+        }
+        if("2" == ch_special_type) {//可选特价
+            //1已读会员卡
+            if(tablemodel->vch_membernod.ismprice()) {//会员价
+                switch(lds_messagebox::question(this, tr("提示"), tr("选择特价"),
+                                                tr("会员价")+":"+QString::number(num_m_price, 'f', 2),
+                                                tr("特价")+":"+QString::number(num_special_price, 'f', 2), tr("原价")+":"+QString::number(num_price, 'f', 2), tr("取消"))) {
+                case 0://会员价
+                    num_price = num_m_price;
+                    break;
+                case 1://特价
+                    num_price = num_special_price;
+                    break;
+                case 2://原价
+                    num_price = num_price;
+                    break;
+                case 3://取消
+                    return false;
+                }
+            } else {
+                switch(lds_messagebox::question(this, tr("提示"), tr("选择特价"),
+                                                tr("特价")+":"+QString::number(num_special_price, 'f', 2), tr("原价")+":"+QString::number(num_price, 'f', 2), tr("取消"))) {
+                case 0://特价
+                    num_price = num_special_price;
+                    break;
+                case 1://原价
+                    num_price = num_price;
+                    break;
+                case 2://取消
+                    return false;
+                }
+            }
+        }
+        ///~1 策略1 选择价格
+        //        ///3策略2 第二杯半价、
+        //        if("1" == ch_special_type2) {
+        //            if(1 == int(tablemodel->ch_dishno_dish_num_map_GET().value(ch_dishno))%2) {
+        //                lds_messagebox::information(this, tr("提示"), tr("第二杯半价"));
+        //                num_price = num_price/2;
+        //            }
+        //        }
+        //        ///~3策略2 第二杯半价、
+    }
+
+    ///实价菜
+    if(ch_curprice == "Y"){
+        lds_dialog_input inputdialog(this);
+        inputdialog.ui->label->setText(tr("时价菜"));
+        inputdialog.ui->lineEdit->setText(QString::number(num_price));
+        inputdialog.ui->label_2->setText(tr("数量"));
+
+        inputdialog.setWindowTitle(tr("点菜价格修改"));
+        if(QDialog::Accepted != lds_roundeddialog_rect_align(&inputdialog).exec()){
+            return false;
+        }
+        num_price = inputdialog.ui->lineEdit->text().toFloat();
+    }
+    ///～实价菜
+    ///
+    return true;
+}
+
+void fexpandmain_2::todish_fill_data(const lds_query &query, const QDateTime &dt, const QString &vch_print_memo)
+{
+    QString vch_plan_k3o3_state;
+    QString vch_plan_k3o3_id;
+    QString ch_suitflag2 = query.record().value("ch_suitflag2").toString();
+    //int_id
+    w_bt_dish::kitchenState x = w_bt_dish::KITCHEN_MIN_DEF;
+    if(tablemodel->rowCount() > 0 && !tablemodel->model_is_dirty_by_index(0, "int_flowid")) {
+        x = w_bt_dish::KITCHEN_JiACAI;
+    }
+    w_bt_dish::get_vch_plan_k3o3(vch_plan_k3o3_state, vch_plan_k3o3_id, query.record().value("ch_dishno").toString(), x);
+
+    int row = tablemodel->rowCount();
+
+    //int_id
+    int int_id = 0;
+    if(row > 0) {
+        int_id = tablemodel->model_data(row - 1, "int_id").toInt();
+    }
+    int_id++;
+
+    tablemodel->insertRow(row);
+
+    tablemodel->model_data_set(row, "int_id", int_id);
+    tablemodel->model_data_set(row, "ch_billno", tablemodel->_ch_billno);
+    tablemodel->model_data_set(row, "ch_tableno", deskinfo->label_deskno->text());
+    tablemodel->model_data_set(row, "ch_dishno", query.record().value("ch_dishno"));
+    tablemodel->model_data_set(row, "num_price", query.record().value("num_price") );
+
+    tablemodel->model_data_set(row, "num_price_org", query.record().value("num_price"));
+    tablemodel->model_data_set(row, "num_price_add", 0);
+    tablemodel->model_data_set(row, "num_num", query.record().value("num_default"));
+    tablemodel->model_data_set(row, "num_back", 0);
+    tablemodel->model_data_set(row, "vch_back_operID", "");
+
+    tablemodel->model_data_set(row, "dt_back_operdate", lds::dtifnull());
+    tablemodel->model_data_set(row, "int_discount", 100);
+    tablemodel->model_data_set(row, "vch_dis_operID", "");
+    tablemodel->model_data_set(row, "dt_dis_operdate", lds::dtifnull());
+    tablemodel->model_data_set(row, "vch_memberno", "");
+
+    tablemodel->model_data_set(row, "ch_consult", "");
+    tablemodel->model_data_set(row, "vch_print_memo", "");
+    tablemodel->model_data_set(row, "ch_suitflag", ch_suitflag2);///
+    tablemodel->model_data_set(row, "ch_suitno", query.record().value("ch_suitno"));///
+    tablemodel->model_data_set(row, "ch_specialflag", "N");
+
+    tablemodel->model_data_set(row, "ch_presentflag", "N");
+    tablemodel->model_data_set(row, "vch_pre_operID", "");
+    tablemodel->model_data_set(row, "dt_pre_operdate", lds::dtifnull());
+    tablemodel->model_data_set(row, "vch_operID", public_sql::gs_operid);
+    tablemodel->model_data_set(row, "dt_operdate", dt);
+
+    tablemodel->model_data_set(row, "ch_togono", "");
+    tablemodel->model_data_set(row, "ch_payno",  "");
+    tablemodel->model_data_set(row, "vch_plan_k3o3_id", vch_plan_k3o3_id);
+    tablemodel->model_data_set(row, "vch_plan_k3o3_state", vch_plan_k3o3_state);
+
+    tablemodel->model_data_set(row, "vch_plan_desc", "");
+    tablemodel->model_data_set(row, "int_rate", query.record().value("int_rate"));///
+
+    //优先级
+    if(ch_suitflag2 == "Y") {
+        tablemodel->model_data_set(row, "num_price", 0);
+    }
+    //非子套菜
+    if(ch_suitflag2 != "Y") {
+        tablemodel->model_data_set(row, "vch_print_memo", vch_print_memo);
+        tablemodel->model_data_set(row, "num_price_add", tablemodel->get_num_price_add_vch_print_memo_by_memo(vch_print_memo));
+    }
+}
+
+void fexpandmain_2::to_payfor_info(const QString &ch_payno, int paytype)
+{
+    showPayinfo(tableView, paywidget, ch_payno, paytype);
+}
+
+void fexpandmain_2::to_payfor_info_ch_billno(const QString &ch_billno, int paytype)
+{
+    lds_query query;
+    query.exec(QString(" SELECT ch_payno FROM cey_u_checkout_master where ch_billno = '%1' ; ")
+               .arg(ch_billno));
+    query.next();
+
+    to_payfor_info(query.record().value("ch_payno").toString(), paytype);
+}
+
+bool fexpandmain_2::towaimai()
+{
+    if(tablemodel->rowCount() == 0) {
+        lds_messagebox::warning(this, tr("普通外卖"),tr("您还未进行点菜,请确认"));
+        return false;
+    }
+    takeout_cook dialog(tablemodel, this);
+    dialog.setWindowTitle(tr("普通外卖"));
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
+        return true;
+    }
+    return false;
+}
+
+void fexpandmain_2::towaimaipay()
+{
+    take_cashier cashierdialog(this);
+    cashierdialog.setWindowTitle(tr("外卖收银结算"));
+    lds_roundeddialog_rect_align(&cashierdialog).exec();
+}
+
+void fexpandmain_2::toweixinwaimai()
+{
+    w_scr_dish_weixinwaimai dialog(this);
+    dialog.setWindowTitle(tr("微信外卖"));
+    lds_roundeddialog_rect_align(&dialog).exec();
+}
+
+void fexpandmain_2::toweixinquitbill()
+{
+    w_scr_dish_weixin_quitbill dialog(this);
+    dialog.setWindowTitle(tr("退单查询"));
+    lds_roundeddialog_rect_align(&dialog).exec();
+}
+
+void fexpandmain_2::toweixinbill_import()
+{
+    w_scr_dish_weixinbill_import dialog(this);
+    dialog.setWindowTitle(tr("微信订单"));
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
+        QDateTime dt = n_func::f_get_sysdatetime();
+        lds_query query;
+
+        tablemodel->keepdata_disabled_begin_rowcount();
+        query.exec(QString("SELECT b.*, (case b.ch_suitflag when 'Y' then 'P' else 'N' end) as ch_suitflag2, (case b.ch_suitflag when 'Y' then b.ch_dishno else '' end) as ch_suitno, a.number as num_default, c.vch_unitname FROM cey_web_order_dish a, cey_bt_dish b, cey_bt_unit c where  a.dishNo = b.ch_dishno and b.ch_unitno = c.ch_unitno and b.ch_stopflag = 'N' and a.orderSn = '%1' ; ")
+                   .arg(dialog.wdata.sn));
+        while(query.next()){
+            todish_fill_data(query, dt);
+        }
+        tablemodel->keepdata_submit();
+    }
+}
+
+qreal fexpandmain_2::step() const
+{
+    return valuestep;
+}
+
+void fexpandmain_2::setstep(qreal value)
+{
+    valuestep = value;
+}
+
+void fexpandmain_2::tosetsmartorder()
+{
+    fast_pay_smartorder_Dialog dialog(tablemodel->_ch_billno,  this);
+    dialog.setWindowTitle(tr("其他设置"));
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
+        torefresh_dish();
+    }
+}
+
+void fexpandmain_2::toupdateDishImage(const QModelIndex &index)
+{
+    QString ch_sub_typeno;
+    QModelIndex subtypeindex = tableView_subtype->currentIndex();
+    if(subtypeindex.isValid()) {
+        ch_sub_typeno = subtypeindex.data(Qt::UserRole + 1).toString();
+    }
+    updateDishImage(this,index, model_dish, ch_sub_typeno);
+    tablemodel->tablename_kvmap_clear_for_select_and_autoselect();
+}
+
+void fexpandmain_2::toupdateDishImage_add()
+{
+    QString ch_sub_typeno;
+    QModelIndex subtypeindex = tableView_subtype->currentIndex();
+    if(subtypeindex.isValid()){
+        ch_sub_typeno = subtypeindex.data(Qt::UserRole+1).toString();
+    }
+    updateDishImage_add(this, model_dish, ch_sub_typeno);
+    tablemodel->tablename_kvmap_clear_for_select_and_autoselect();
+}
+
+void fexpandmain_2::totypeset()
+{
+    w_bt_dish_base_typeset dialog(this);
+    dialog.setWindowTitle(tr("品类设置"));
+    lds_roundeddialog_rect_align(&dialog).exec();
+
+    update_type_subtype_view();
+}
+
+void fexpandmain_2::updateDishImage(QWidget *parent, const QModelIndex &index, ftableview_standmodel_sql *model_dish, const QString &ch_sub_typeno, const QString &ch_groupno)
+{
+    lds_query query;
+    if(index.isValid()){//点击非菜品出
+        if((model_dish->rowCount() - 1) == index.row() && (model_dish->columnCount() - 1) == index.column()) {
+            switch(lds_messagebox::question(parent, tr("提示"), tr("菜品操作"),  tr("新增"), tr("修改"), tr("取消"))){
+            case 0:
+                goto tonew;
+                return;
+            case 1:
+                goto tochange;
+                return;
+            case 2:
+                return;
+            }
+        }
+        goto tochange;
+    }
+    goto tonew;
+    return;
+tochange:
+    {
+        QString ch_dishno = index.data(Qt::UserRole+1).toString();
+        w_bt_dish_base_change_by_ch_dishno dialog(parent, ch_dishno);
+        dialog.setWindowTitle(tr("修改"));
+        lds_roundeddialog_rect_align(&dialog).exec();
+        query.exec(QString(" select ch_dishno, CONCAT(vch_dishname,'\n',num_price),  from cey_bt_dish where ch_stopflag <> 'Y' and ch_tempflag <> 'Y' and ch_dishno = '%1' ")
+                   .arg(ch_dishno));
+        if(query.next()){
+            model_dish->setData(index, query.record().value(1), Qt::UserRole);
+            QPixmap pixmap(model_dish->imagedishdir+"/"+ch_dishno);
+            if(pixmap.isNull()) {
+                model_dish->setData(index, ch_dishno, Qt::UserRole+2);
+            } else {
+                model_dish->setData(index, pixmap, Qt::UserRole+2);
+            }
+        } else {
+            qDebug("not ch_dishno match filter!");
+        }
+        model_dish->refreshcur();
+        return;
+    }
+tonew:
+    {
+        updateDishImage_add(parent, model_dish, ch_sub_typeno, ch_groupno);
+        model_dish->refreshcur();
+    }
+}
+
+void fexpandmain_2::updateDishImage_add(QWidget *parent, ftableview_standmodel_sql *model_dish, const QString &ch_sub_typeno, const QString &ch_groupno)
+{
+    lds_query query;
+    QString ch_dish_typeno;
+    query.exec(QString("SELECT ch_dish_typeno FROM hddpos.cey_bt_dish_subtype where ch_sub_typeno = '%1' ")
+               .arg(ch_sub_typeno));
+    query.next();
+    ch_dish_typeno = query.record().value("ch_dish_typeno").toString();
+
+    w_bt_dish_base_new dialog(parent, ch_dish_typeno, ch_sub_typeno);
+    dialog.setWindowTitle(tr("新增"));
+    dialog.editorsetValue(dialog.ui->lineEdit_ch_groupno, ch_groupno, "ch_groupno");//ui->lineEdit_ch_groupno->setText(ch_groupno);
+    dialog.ui->lineEdit_ch_groupno->setEnabled(false);
+    lds_roundeddialog_rect_align(&dialog).exec();
+    model_dish->refreshcur();
+}
+
+void fexpandmain_2::update_type_subtype_view()
+{
+    tableView_type->hide();
+    tableView_subtype->hide();
+    if(lds::sysconf->value("w_bt_dish_base_typeset/show_dish_type",true).toBool()) {
+        tableView_subtype->setFixedRCcount(1, model_subtype->columnCount(), tableView_subtype->horizontalHeader()->defaultSectionSize(), tableView_subtype->verticalHeader()->defaultSectionSize());
+        tableView_type->show();
+        tableView_subtype->show();
+    } else {
+        tableView_subtype->setFixedRCcount(2, model_subtype->columnCount(), tableView_subtype->horizontalHeader()->defaultSectionSize(), tableView_subtype->verticalHeader()->defaultSectionSize());
+        tableView_subtype->show();
+    }
+
+    model_type->refreshcur();
+    model_subtype->refreshcur();
+}
+
+void fexpandmain_2::update_pay_info_set_empty()
+{
+    if(paywidget) {
+        delete paywidget;
+        paywidget = 0;
+    }
+}
+
+void fexpandmain_2::to_update_num_total(const QString & n, const QString & t)
+{
+    deskinfo->label_num->setText(n);
+    deskinfo->label_total->setText(t);
+}
+
+void fexpandmain_2::to_update_up_down_enabled(int min, int max)
+{
+    Q_UNUSED(min)
+    Q_UNUSED(max)
+    QScrollBar *vbar = tableView->verticalScrollBar();
+    /*down*/frame_dish_bottom->index_btn(1)->setDisabled(vbar->value() == vbar->maximum());
+    /*up*/frame_dish_bottom->index_btn(0)->setDisabled(vbar->value() == vbar->minimum());
+}
+
+void fexpandmain_2::todown()
+{
+    QScrollBar *vbar = tableView->verticalScrollBar();
+    vbar->setValue(vbar->value()+vbar->pageStep());
+    /*down*/frame_dish_bottom->index_btn(1)->setDisabled(vbar->value() == vbar->maximum());
+    /*up*/frame_dish_bottom->index_btn(0)->setDisabled(vbar->value() == vbar->minimum());
+}
+
+void fexpandmain_2::toup()
+{
+    QScrollBar *vbar = tableView->verticalScrollBar();
+    vbar->setValue(vbar->value()-vbar->pageStep());
+    /*down*/frame_dish_bottom->index_btn(1)->setDisabled(vbar->value() == vbar->maximum());
+    /*up*/frame_dish_bottom->index_btn(0)->setDisabled(vbar->value() == vbar->minimum());
+}
+
+void fexpandmain_2::tochange()
+{
+    QString errstring;
+    int row = tableView->currentIndex().row();
+    if(row < 0) {
+        lds_messagebox::warning(this, tr("提示"), tr("没有菜品被选中"));
+        return;
+    }
+    if(!tablemodel->can_change_dish(row, &errstring)) {
+        lds_messagebox::warning(this,tr("提示"),errstring);
+        return;
+    }
+    int rowp = row;
+    float num_num = tablemodel->model_data_NIBOLAN(row, "num_num-num_back");
+    float num_price_org = tablemodel->model_data(row, "num_price_org").toFloat();
+    if(tablemodel->model_data(row, "ch_suitflag").toString() == "Y") {//是子套菜
+        for(;rowp >=0; rowp --)
+            if(tablemodel->model_data(rowp, "ch_suitflag").toString() == "P") break;
+    }
+
+    lds_query query;
+    w_scr_dish_dish_change dialog(
+                tablemodel->model_data(row, "ch_dishno").toString(),
+                tablemodel->model_data(row, "num_price_org").toFloat(),
+                tablemodel->model_data(row, "ch_suitno").toString(),
+                this);
+    dialog.setWindowTitle(tr("修改菜品"));
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
+        QString msg;
+        if(!fexpandmain_2::guqing_check(msg, dialog.ch_dishno_new, tablemodel->model_data_NIBOLAN(row, "num_num-num_back"))) {
+            lds_messagebox::warning(this, tr("提示"), msg+tr("操作失败"));
+            return;
+        }
+        if(!msg.isEmpty()) {
+            lds_messagebox::information(this ,tr("提示"), msg);
+        }
+
+        query.exec(QString("select ch_dishno, num_price  from cey_bt_dish  where ch_dishno =  '%1' ").arg(dialog.ch_dishno_new));
+        query.next();
+        float num_price_new = query.record().value("num_price").toFloat();
+        QString ch_dishno = query.record().value("ch_dishno").toString();
+        {//删除，插入为了，估清
+            fexpandmain_model_sqltablemodel tmp;
+            tmp.setTable("cey_u_orderdish");
+            tmp.setEditStrategy(QSqlTableModel::OnManualSubmit);
+            tmp.insertRow(0);
+            for(int c = 0; c < tablemodel->columnCount(); c++) {
+                tmp.model_data_set(0, c , tablemodel->model_data(row, c));
+            }
+            tablemodel->keepdata_enabled();
+            tablemodel->removeRows(row, 1);
+            ///数据预插入
+            tablemodel->keepdata_disabled_begin_rowcount(row);
+            tablemodel->insertRow(row);
+
+            for(int c = 0; c < tablemodel->columnCount(); c++) {
+                tablemodel->model_data_set(row, c, tmp.model_data(0, c));
+            }
+        }
+
+        tablemodel->model_data_set(row, "num_price",num_price_new);
+        tablemodel->model_data_set(row, "num_price_org",num_price_new);
+        tablemodel->model_data_set(row, "ch_dishno",ch_dishno);
+        tablemodel->model_data_set(row, "num_num",dialog.rate*num_num);
+
+        if(tablemodel->model_data(row, "ch_suitflag").toString() == "Y"){//是套菜
+            tablemodel->model_data_set(row, "num_price",0);
+            if(!dialog.suitreplace) {//如果不是非可替换菜品，需要补加
+                if(num_price_org != num_price_new){
+                    if(0==lds_messagebox::question(this, tr("提示"),tr("替换菜品和被替换菜品价格不一样\n是否在主套菜上补差价?"),tr("确认"),tr("取消"))){
+                        float diff = (num_price_new-num_price_org)*num_num;
+                        float num_nump = tablemodel->model_data_NIBOLAN(rowp, "num_num-num_back");
+                        tablemodel->model_data_set(rowp, "num_price",  tablemodel->model_data(rowp, "num_price").toFloat() + diff/num_nump);
+                    }
+                }
+            }
+            ///换菜后，不在追加
+            tablemodel->ch_dishno_set_row_map_DEL(rowp, 1);
+        }
+        ///～数据预插入
+        tablemodel->keepdata_submit(row + 1);
+    }
+    return ;
+}
+
+//QDialogButtonBox::AcceptRole://单个退菜
+//QDialogButtonBox::ApplyRole://整单退菜
+int fexpandmain_2::toquitdish()
+{
+    int ret = QDialogButtonBox::InvalidRole;
+    int row = tableView->currentIndex().row();
+    QString errstring;
+    if(tablemodel->rowCount() == 0) {
+        lds_messagebox::warning(this, tr("提示"), tr("没有菜品被选中"));
+        return ret;
+    }
+    if(tablemodel->model_is_dirty_by_index(row, "int_flowid")) {
+        if(row < 0) {
+            lds_messagebox::warning(this, tr("提示"), tr("没有菜品被选中"));
+            return ret;
+        }
+        //删菜
+        if(to_dish_del(row, errstring)){
+            return ret;
+        }
+    } else {
+        /** -----------------------------权限-----------------------------begin*/
+        QString ls_operid = public_sql::gs_operid;
+        if(!n_func::f_check_bus_grant_twice(ls_operid, "0218", this, tr("退菜"))){
+            return ret;
+        }
+        /** -----------------------------权限-----------------------------end*/
+        w_scr_dish_dish_quit dialog(this);
+        dialog.setWindowTitle(tr("退菜"));
+        dialog.initData(row, tablemodel, get_ch_billno());
+        ret = lds_roundeddialog_rect_align(&dialog).exec();
+        switch(ret){
+        case QDialogButtonBox::AcceptRole://单个退菜
+        {
+            tablemodel->model_data_set(row, "num_back", tablemodel->model_data_NIBOLAN(row, "num_back+num_num"));
+            tablemodel->select(tablemodel->_ch_billno, this);
+            frontViewDialog_virtual::static_display_cash(QString().sprintf("%0.2f", tablemodel->_keepdata.dish_num_total()));
+            break;
+        }
+        case QDialogButtonBox::ApplyRole://整单退菜
+        {
+            for(int row = 0; row < tablemodel->rowCount(); row ++) {
+                tablemodel->model_data_set(row, "num_back", tablemodel->model_data_NIBOLAN(row, "num_back+num_num"));
+            }
+            tablemodel->select(tablemodel->_ch_billno, this);
+            frontViewDialog_virtual::static_display_cash(QString().sprintf("%0.2f", tablemodel->_keepdata.dish_num_total()));
+            break;
+        }
+        }
+    }
+
+    if(!errstring.isEmpty()) {
+        lds_messagebox::warning(this, tr("提示"), errstring);
+    }
+    return ret;
+}
+
+void fexpandmain_2::todetail()
+{
+    int row = tableView->currentIndex().row();
+    if(row < 0) {
+        lds_messagebox::warning(this, tr("提示"), tr("没有行被选中"));
+        return;
+    }
+
+    w_scr_dish_num_cook_Dialog *dialog = this->findChild<w_scr_dish_num_cook_Dialog *>("w_scr_dish_num_cook_Dialog");
+
+    if(dialog == 0) {
+        dialog = new w_scr_dish_num_cook_Dialog(this);
+        dialog->setObjectName("w_scr_dish_num_cook_Dialog");
+        dialog->setWindowTitle(tr("菜品修改"));
+        dialog->copyModel(tablemodel, row);
+    }
+    if(dialog) {
+        dialog->refresh(row);
+    }
+    if(QDialog::Accepted == lds_roundeddialog_rect_align(dialog).exec()){
+        float off = dialog->get_cur_dish_num() - tablemodel->model_data_NIBOLAN(row, "num_num-num_back");
+        QString msg;
+        if(guqing_try_check_P(msg, row, off)) {
+            if(!msg.isEmpty()) {
+                lds_messagebox::information(this, tr("提示"), msg);
+            }
+            dialog->commitModel(tablemodel, row);
+        } else {
+            lds_messagebox::warning(this, tr("提示"), msg + tr("操作失败"));
+        }
+    }
+}
+
+void fexpandmain_2::test_update_time()
+{
+}
+
+void fexpandmain_2::to_suit_fold(const QModelIndex &index)
+{
+    tablemodel->row_fold_map_FOLD(tableView, index);
+}
+
+void fexpandmain_2::dish_present()
+{
+    int row = tableView->currentIndex().row();
+    if(row < 0) {
+        lds_messagebox::warning(this, tr("提示"), tr("没有菜品被选中"));
+        return;
+    }
+    if(row >= 0) {
+        if(tablemodel->can_present(row)) {
+            w_scr_dish_num_cook_Dialog::static_to_present
+                    (this,
+                     tablemodel,
+                     row,
+                     tablemodel->model_data_NIBOLAN(row, "num_num-num_back"));
+        }
+    }
+}
+
+bool fexpandmain_2::to_m_read()
+{
+    QString mtitle;
+    QString errstring = tr("软件未启用会员价功能");
+    errstring = "";
+    //if("1" == wxmanager::f_get_sysparm("bp_discountproject"))
+    {
+        if(lds::sysconf->value("system_setting/qt_can_member_sendcard", false).toBool()) {
+            switch(lds_messagebox::question(this, tr("提示"), tr("会员管理"), tr("会员资料维护"), tr("会员读卡"), tr("取消"))) {
+            case 0:
+            {
+                w_m_member_list dialog(this);
+                if(backheader::operid_right_code(this, "0402")){//会员资料维护【 0402 】
+                    dialog.setWindowTitle(tr("会员资料维护"));
+                    dialog.setFixedSize(lds::MAIN_WINDOW_SIZE);
+                    lds::setwflagFrameless(&dialog);
+                    dialog.exec();
+                }
+            }
+                goto end;
+                break;
+            case 1:
+                break;
+            case 2:
+                goto end;
+                break;
+            }
+        }
+
+        errstring = "";
+        if(!tablemodel->vch_membernod.vch_memberno.isEmpty()) {
+            switch(lds_messagebox::information(this, tr("提示"), tr("会员卡信息")+"\n"+tablemodel->vch_membernod.desc(), tr("重新读卡"), tr("撤销当前会员"), tr("取消"))) {
+            case 0://重新读卡
+                tablemodel->vch_membernod_m_clear(errstring);
+                break;
+            case 1://撤销当前会员
+                tablemodel->vch_membernod_m_clear(errstring);
+                goto end;
+                break;
+            case 2://取消
+                goto end;
+            }
+        }
+        errstring = "";
+        //读卡
+        uo_rw_member uo_member;
+        QString cardno;
+        n_func::READCARDINFO cardinfo;
+        if(!w_m_member_list::static_to_memeber_readcard(this,cardno, uo_member, true, true)){
+            goto end;
+        }
+        //判断卡是否存在
+        if(cardno.isEmpty()){
+            lds_messagebox::warning(this, tr("提示"),tr("无可查询的卡"));
+            goto end;
+        }
+        //读卡信息
+        if(!n_func::qtcardinfo_readcard(this, cardinfo, cardno)) {
+            goto end;
+        }
+        //判断密码
+        if(!cardinfo.vch_password.isEmpty()){
+            lds_dialog_input inputdialog(this);
+            inputdialog.hideKey();
+            inputdialog.ui->label->setText(tr("密码"));
+            inputdialog.ui->lineEdit->setEchoMode(QLineEdit::Password);
+            inputdialog.setWindowTitle(tr("请输入密码"));
+            if(!QDialog::Accepted==lds_roundeddialog_rect_align(&inputdialog).exec()){
+                goto end;
+            }
+            if(cardinfo.vch_password!=inputdialog.ui->lineEdit->text()){
+                lds_messagebox::warning(this, tr("提示"),tr("密码错误，操作取消"));
+                goto end;
+            }
+        }
+        //判断卡的状态
+        if(cardinfo.vch_memberno.isEmpty()){
+            lds_messagebox::warning(this, tr("提示"),tr("有误,还未发卡或不存在,请核实"));
+            goto end;
+        }
+        if(cardinfo.ch_state == "4"){
+            lds_messagebox::warning(this, tr("提示"),tr("此卡已经作废,不能付款"));
+            goto end;
+        }
+        if(cardinfo.ch_state == "3"){
+            lds_messagebox::warning(this, tr("提示"),tr("此卡已经挂失,不能付款"));
+            goto end;
+        }
+        if(cardinfo.ch_state == "2"){
+            lds_messagebox::warning(this, tr("提示"),tr("此卡已经止付,不能付款"));
+            goto end;
+        }
+        if(cardinfo.ch_state.isEmpty()){
+            lds_messagebox::warning(this, tr("提示"),tr("非本公司卡或无效卡"));
+            goto end;
+        }
+        if(cardinfo.dt_limit <= n_func::f_get_sysdatetime()){
+            lds_messagebox::warning(this, tr("提示"),tr("此卡已经超过有效期"));
+            goto end;
+        }
+        if(cardinfo.ch_cardflag != "Y"){
+            lds_messagebox::warning(this, tr("提示"),tr("会员卡")+cardinfo.vch_memberno+tr("还未发卡"));
+            goto end;
+        }
+
+        //
+        if(w_m_member_list::is_yun_member) mtitle = tr("云") + tr("会员卡") + cardinfo.vch_memberno;
+        else mtitle = tr("会员卡") + cardinfo.vch_memberno;
+
+        //根据会员类别信息，更新信息--begin
+        if(cardinfo.ch_favourable == "1"){//会员价
+            if(cardinfo.ch_pricekind.isEmpty()){
+                lds_messagebox::warning(this, mtitle,tr("没有设置会员价")+","+tr("请到会员类型里修改"));
+                goto end;
+            }
+            if(1 == lds_messagebox::information(this, mtitle, tr("当前读卡信息:") + tr("会员特价"), tr("确定"), tr("取消"))){
+                goto end;
+            }
+            //会员特价
+        } else if(cardinfo.ch_favourable == "2"){//固定折扣
+            if(cardinfo.int_discount.isEmpty()){
+                lds_messagebox::warning(this, mtitle,tr("没有设置会员折扣")+","+tr("请到会员类型里修改"));
+                goto end;
+            }
+            if(1 == lds_messagebox::information(this, mtitle, tr("当前读卡信息:") + tr("折扣(%1)").arg(cardinfo.int_discount), tr("确定"), tr("取消"))){
+                goto end;
+            }
+        } else {
+            lds_messagebox::warning(this, mtitle, tr("没有找到该会员优惠信息")+","+tr("请到会员类型里修改"));
+            goto end;
+        }
+
+        tablemodel->vch_membernod.init(cardinfo.vch_memberno,
+                                       cardinfo.ch_member_belong_state,
+                                       cardinfo.ch_favourable,
+                                       cardinfo.int_discount.toInt(),
+                                       cardinfo.ch_pricekind,
+                                       cardinfo.ch_attribute,
+                                       cardinfo.vch_typename
+                                       );
+        tablemodel->vch_membernod_m_update(errstring);
+        return true;
+    }
+end:
+    w_m_member_list::yun_member_close();//! 关闭云会员
+    if(!errstring.isEmpty()) {
+        lds_messagebox::warning(this, tr("提示"), errstring);
+    }
+    return false;
+}
+
+bool fexpandmain_2::try_commit_data_update_num_cost(QString &errstring)
+{
+    //try_commit_data
+    lds_query query;
+    if(!tablemodel->try_commit_data(errstring)) {
+        return false;
+    }
+    //update_num_cost
+    if(!query.exec(QString("update cey_u_table set num_cost = %1 where ch_billno = '%2' ")
+                   .arg(tablemodel->_keepdata.dish_num_total())
+                   .arg(tablemodel->_ch_billno))) {
+        errstring = tr("数据库错误") + query.lastError().text();
+        return false;
+    }
+    //
+    return true;
+}
+
+void fexpandmain_2::toadddish(const QString &ch_dishno, const QString &vch_print_memo, float num_price, int int_discount)
+{
+    lds_query query;
+    QString guqing_check_msg;
+    bool guqing_check_flag = false;
+    int gooddegree = 0;
+
+    //1 默认数量 2 菜品编码
+    query.exec(QString("select b.vch_dishname, a.num_default , b.ch_suitflag  from cey_bt_unit a, cey_bt_dish b where b.ch_dishno = '%1' and a.ch_unitno = b.ch_unitno ").arg(ch_dishno));
+    query.next();
+    float num_default = query.record().value("num_default").toFloat();
+    QString ch_suitflag = query.record().value("ch_suitflag").toString();
+    QString vch_dishname = query.record().value("vch_dishname").toString();
+    QString sql0 =
+            " SELECT b.*, (case ch_suitflag when 'Y' then 'P' else 'N' end) as ch_suitflag2, (case ch_suitflag when 'Y' then ch_dishno else '' end) as ch_suitno,  1 * %1 as num_default  FROM cey_bt_dish b where b.ch_dishno = '%2' and b.ch_stopflag = 'N' ";
+
+    if(ch_suitflag == "Y" ) {
+        sql0 += " union "
+                "(select b.*, 'Y' as ch_suitflag2, ch_suitno, a.num_num as num_default  from cey_bt_dish_suit a left join cey_bt_dish b  on a.ch_dishno = b.ch_dishno  where a.ch_suitno = '%2' and b.ch_stopflag = 'N')  ;";
+    }
+
+    QDateTime dt = n_func::f_get_sysdatetime();
+    const int const_row = tablemodel->rowCount();
+    int row = const_row;
+    QString ch_weight;
+    ///-------------------开始预插入
+    tablemodel->keepdata_disabled_begin_rowcount(const_row);
+    query.exec(sql0.arg(num_default).arg(ch_dishno));
+    while(query.next()){
+        if(ch_weight.isEmpty()) ch_weight  = query.record().value("ch_weight").toString();
+        todish_fill_data(query, dt, vch_print_memo);
+    }
+    tablemodel->model_data_set(const_row, "num_price", num_price);
+    tablemodel->model_data_set(const_row, "int_discount", int_discount);
+
+    if(num_price != tablemodel->model_data(row, "num_price_org").toFloat()) {
+        gooddegree ++;
+    }
+    qDebug() << __FILE__ << __LINE__;
+    //判断是否是称重商品
+    if(ch_weight == "Y"){
+        ///称重时初始数量为0
+        ///称重后无法进入菜品详细界面
+        take_weight dialog(tablemodel->model_data(const_row, "ch_dishno").toString(),
+                           tablemodel->model_data(const_row, "num_price").toFloat(),
+                           0,
+                           tablemodel->model_data(const_row, "int_discount").toInt(),
+                           this);
+        dialog.setAppendbtn(false);
+        dialog.setWindowTitle(tr("称重"));
+        if(QDialog::Accepted != lds_roundeddialog_rect_align(&dialog).exec()){
+            goto CANCEL;
+        }
+        //获取重量，等待提交
+        float num_num_old = tablemodel->model_data_NIBOLAN(const_row, "num_num-num_back");
+        tablemodel->model_data_set(const_row, "num_num", dialog._weight);
+        tablemodel->update_num_num_P(num_num_old, row);
+        gooddegree ++;
+    }
+    qDebug() << __FILE__ << __LINE__;
+    //!菜品详细------------------------------begin
+    if(gooddegree == 0
+            && "1" == wxmanager::f_get_sysparm("ordertonum")){
+        w_scr_dish_num_cook_Dialog *dialog = this->findChild<w_scr_dish_num_cook_Dialog *>("w_scr_dish_num_cook_Dialog");
+        if(dialog == 0) {
+            dialog = new w_scr_dish_num_cook_Dialog(this);
+            dialog->setObjectName("w_scr_dish_num_cook_Dialog");
+            dialog->setWindowTitle(tr("菜品修改"));
+            dialog->copyModel(tablemodel, row);
+        }
+        if(dialog) {
+            dialog->refresh(row);
+        }
+
+        if(QDialog::Accepted == lds_roundeddialog_rect_align(dialog).exec()){
+            dialog->commitModel(tablemodel, const_row);
+        } else {
+            goto CANCEL;
+        }
+    }
+    qDebug() << __FILE__ << __LINE__;
+    //!菜品详细------------------------------end
+    //做法
+    if(!tablemodel->model_data(const_row, "vch_print_memo").toString().isEmpty()) {
+        gooddegree ++;
+    }
+
+    if(tablemodel->model_data(const_row, "num_num").toFloat()  <= 0) {
+        lds_messagebox::warning(this, tr("提示"), tr("点菜数量不能小于等于0"));
+        goto CANCEL;
+    }
+    qDebug() << __FILE__ << __LINE__;
+
+    //估清check
+    guqing_check_msg.clear();
+    guqing_check_flag = true;
+    for(int row = const_row; row < tablemodel->rowCount(); row ++) {
+        QString ch_dishno = tablemodel->model_data(row, "ch_dishno").toString();
+        float num_cur_num = tablemodel->model_data_NIBOLAN(row, "num_num-num_back");
+        if(!fexpandmain_2::guqing_check(guqing_check_msg, ch_dishno, num_cur_num)) {
+            guqing_check_flag = false;
+        }
+    }
+    if(!guqing_check_msg.isEmpty()) {
+        if(!guqing_check_flag) {
+            guqing_check_msg += "\n" + tr("操作失败");
+        }
+        lds_messagebox::warning(this, tr("提示"), guqing_check_msg);
+        if(!guqing_check_flag) {
+            goto CANCEL;
+        }
+    }
+    qDebug() << __FILE__ << __LINE__;
+NEXT0:
+    //累计
+    if(gooddegree == 0
+            &&!lds::sysconf->value("system_setting/samedishNotadd_order", false).toBool()){
+        QSet<int> rows = tablemodel->ch_dishno_set_row_map_GET(ch_dishno);//由于在select ch_dishno的时候，不在插入ch_dishno_set_row_map中已落单的内容
+        qDebug() << __LINE__ << rows << const_row;
+        qDebug() << __LINE__ << tablemodel->ch_dishno_set_row_map_GET();
+        foreach(int r, rows) {
+            if(r != const_row){
+                float addnum = tablemodel->model_data(const_row, "num_num").toFloat();
+                float num_num_old = tablemodel->model_data(r, "num_num").toFloat();
+                tablemodel->removeRows(const_row, tablemodel->rowCount() - const_row);
+                tablemodel->keepdata_enabled();
+                tablemodel->model_data_set(r, "num_num", tablemodel->model_data(r, "num_num").toFloat() + addnum);
+                if(tablemodel->model_data(r, "ch_suitflag").toString() == "P") {
+                    tablemodel->update_num_num_P(num_num_old, r);
+                }
+                row = r;
+                tableView->update(tablemodel->model_index(r, "int_flowid"));
+                frontViewDialog_virtual::static_display_price(QString().sprintf("%0.2f", tablemodel->model_data(row, "num_price").toFloat()), vch_dishname);
+                goto SELECTROW;
+            }
+        }
+    }
+    qDebug() << __FILE__ << __LINE__;
+    /////////////////
+    tablemodel->keepdata_submit();
+    if("1" == fexpandmain::qt_Y_dish_fold) {
+        tablemodel->keepdata_Y_dish_fold(tableView, const_row);
+    }
+    frontViewDialog_virtual::static_display_price(QString().sprintf("%0.2f", tablemodel->model_data(const_row, "num_price").toFloat()), vch_dishname);
+    goto SELECTROW;
+CANCEL:
+    qDebug() << __FILE__ << __LINE__;
+    tablemodel->removeRows(const_row, tablemodel->rowCount() - const_row);
+SELECTROW:
+    qDebug() << __FILE__ << __LINE__;
+    tablemodel->keepdata_enabled();
+    if(row>=0 && row < tablemodel->rowCount()) {
+        tableView->selectRow(row);
+    }
+}
+
+bool fexpandmain_2::to_dish_del(int row, QString &errstring)
+{
+    if(tablemodel->model_data(row, "ch_suitflag").toString() == "Y") {
+        errstring = tr("套菜明细不能单独删除");
+        return false;
+    }
+    int row0 = row + 1;
+    if(tablemodel->model_data(row, "ch_suitflag").toString() == "P") {
+        while(row0 < tablemodel->rowCount() && tablemodel->model_data(row0, "ch_suitflag").toString() == "Y"){
+            row0++;
+        }
+    }
+
+    tablemodel->removeRows(row, row0-row);
+    int restore_row = qMax(0, qMin(row, tablemodel->rowCount()-1));//删除为空时，0， 删除最后一个时，为最后一个，
+    for(;restore_row >= 0 && restore_row < tablemodel->rowCount(); restore_row --) {
+        if(tablemodel->model_data(restore_row, "ch_suitflag").toString() == "Y"){//删除后选中行为子套菜时，自动上移至主套菜
+            continue;
+        }
+        break;
+    }
+    tableView->selectRow(restore_row);
+
+    frontViewDialog_virtual::static_display_cash(QString().sprintf("%0.2f", tablemodel->_keepdata.dish_num_total() ));
+    //删除后，int_id重新排布
+    int dirtyr;
+    if(tablemodel->model_is_dirty_by_column("int_flowid", &dirtyr)){
+        for(;dirtyr < tablemodel->rowCount(); dirtyr++) {
+
+            int int_id = dirtyr;
+            if(row > 0) {
+                int_id = tablemodel->model_data(dirtyr - 1, "int_id").toInt();//最大id+1
+            }
+            int_id ++;
+
+            tablemodel->model_data_set(dirtyr, "int_id", int_id);
+        }
+    }
+    return true;
+}
+
+bool fexpandmain_2::static_toquit_1_only(QString &errstring, const num_backData &d)
+{
+    lds_query query;
+    QString ch_dishno;
+    QString ch_suitflag;
+    float num_price_add;
+    float num_price_add_P;
+    QString vch_plan_k3o3_id;
+    QString state;
+    query.exec(QString("select ch_dishno, ch_suitflag, num_price_add, vch_plan_k3o3_id  from cey_u_orderdish where int_flowid = '%1' ")
+               .arg(d.int_flowid));
+    query.next();
+    ch_dishno = query.record().value("ch_dishno").toString();
+    ch_suitflag = query.record().value("ch_suitflag").toString();
+    vch_plan_k3o3_id = query.record().value("vch_plan_k3o3_id").toString();
+
+    num_price_add = fexpandmain_model_sqltablemodel::get_num_price_add_vch_print_memo(d.vch_print_memo_remain);
+    if(ch_suitflag == "Y") num_price_add = 0;
+    if(ch_suitflag == "P") num_price_add_P = query.record().value("num_price_add").toFloat();
+
+
+    for(int k = 0; k < 6; k++) {
+        if(vch_plan_k3o3_id.mid(k*2, 2) == "00") {
+            state += "1";
+        } else {
+            state += w_bt_dish::k2o3_stae2hex_str(w_bt_dish::KITCHEN_QUIT);
+        }
+    }
+    if(query.exec(QString("update cey_u_orderdish set num_back = num_back + %1, vch_back_operid = '%3', dt_back_operdate = '%4', vch_print_memo = '%5' , num_price_add = %6  where int_flowid = '%2' ")
+                  .arg(d.num_back_add)
+                  .arg(d.int_flowid)
+                  .arg(d.vch_back_operid)
+                  .arg(d.dt_back_operdate.toString("yyyy-MM-dd hh:mm:ss"))
+                  .arg(d.vch_print_memo_remain)
+                  .arg(num_price_add)
+                  )) {
+        //更新log
+        num_price_add = fexpandmain_model_sqltablemodel::get_num_price_add_vch_print_memo(d.vch_print_memo);
+        if(ch_suitflag == "Y") num_price_add = 0;
+        if(ch_suitflag == "P") num_price_add = num_price_add_P;
+        if(query.exec(QString("Insert into cey_u_orderdish_log(int_orderflow , ch_type ,  vch_operID , dt_operdate , vch_reason, num_back_cur, vch_plan_k3o3_state, vch_print_memo, num_price_add)values( '%1' ,'1', '%2', '%3', '%4', '%5' ,'%6', '%7', '%8' )")
+                      .arg(d.int_flowid)
+                      .arg(public_sql::gs_operid)
+                      .arg(d.dt_back_operdate.toString("yyyy-MM-dd hh:mm:ss"))
+                      .arg(d.vch_reason)
+                      .arg(d.num_back_add)
+                      .arg(state)
+                      .arg(d.vch_print_memo)
+                      .arg(num_price_add)
+                      )){
+            query.exec(QString(" select num_num, num_back from cey_u_orderdish where int_flowid = %1 ")
+                       .arg(d.int_flowid));
+            query.next();
+            float num_num = query.record().value("num_num").toFloat();
+            float num_back = query.record().value("num_back").toFloat();
+            if(query.exec(QString(" update material_u_orderdish set num_num=%1 * num_rate, num_back= %2 * num_rate where  int_order_flowID = %3 ")
+                          .arg(num_num)
+                          .arg(num_back)
+                          .arg(d.int_flowid)
+                          )){
+                return true;
+            }
+        }
+
+rollback:
+        errstring = tr("数据库错误")+query.lastError().text();
+        return false;
+    }// == 0
+    return true;
+}
+
+
+//dishnum_back_total、d_map 同步更新
+bool fexpandmain_2::static_toquit_1_suit(QString &errstring, qlonglong int_flowid, float &dishnum_back_total, const QString &vch_reason, const QString &operid, const QDateTime &dt, QList<num_backData> *d_list)
+{
+    lds_query query;
+    lds_query query2;
+    QString ch_suitflag;
+    QList<qlonglong> int_flowid_list;
+    QString ch_dishno;
+    QString vch_print_memo;
+    float back_num_P=dishnum_back_total;
+    float dish_num;
+    float back_num_P_org;
+
+    if(dishnum_back_total <= 0) {
+        errstring = tr("退菜数量为0");
+        goto failure;
+    }
+    query.exec(QString("select int_flowid, ch_suitflag, ch_dishno, num_num-num_back as dish_num from cey_u_orderdish where int_flowid = %1 ").arg(int_flowid));
+    if(query.next()) {
+        int_flowid_list.clear();
+        int_flowid_list.append(query.record().value("int_flowid").toLongLong());
+        ch_suitflag = query.record().value("ch_suitflag").toString();
+        ch_dishno = query.record().value("ch_suitflag").toString();
+        back_num_P_org = query.record().value("dish_num").toFloat();
+
+        if(ch_suitflag == "P") {
+            while(query2.exec(QString("select int_flowid, ch_suitflag from cey_u_orderdish where int_flowid = %1 + 1 and ch_suitflag = 'Y' ")
+                              .arg(int_flowid_list.last()))) {
+                if(query2.next()) {
+                    int_flowid_list.append(query2.record().value("int_flowid").toLongLong());
+                } else {
+                    break;
+                }
+            }
+        }
+
+        foreach(int id , int_flowid_list){
+            query2.exec(QString("select int_flowid, num_num - num_back, ch_suitflag, ch_dishno, vch_print_memo from cey_u_orderdish where int_flowid = %1 ")
+                        .arg(id));
+            query2.next();
+            num_backData d;
+            ch_suitflag = query2.record().value("ch_suitflag").toString();
+            vch_print_memo = query2.record().value("vch_print_memo").toString();
+            dish_num = query2.record().value(1).toFloat();
+
+            d.int_flowid = id;
+            d.num_back_add = dish_num;
+            d.dt_back_operdate = dt;
+            d.vch_back_operid = operid;
+            d.vch_reason = vch_reason;
+            d.vch_print_memo = vch_print_memo;//套菜全退
+
+            //主套菜或普通菜品
+            if(d.num_back_add <= dishnum_back_total) {
+            } else {
+                d.num_back_add = dishnum_back_total;
+            }
+            //子套菜
+            if(ch_suitflag == "Y") {
+                if(back_num_P_org == 0) goto failure;
+                d.num_back_add = back_num_P/back_num_P_org * dish_num;
+                //                d.vch_print_memo = "";
+            }
+
+
+            if(d_list)d_list->append(d);
+            if(!fexpandmain_2::static_toquit_1_only(errstring, d)){
+                goto failure;
+            }
+
+            //主套菜或普通菜品
+            dishnum_back_total -= d.num_back_add;
+            //子套菜
+            if(ch_suitflag == "Y") {
+                dishnum_back_total += d.num_back_add;
+            }
+        }
+        return true;
+    }
+    errstring = tr("菜品没有找到");
+failure:
+    return false;
+}
+
+void fexpandmain_2::set_discount_1_suit_Y(fexpandmain_model_sqltablemodel *m, int rowP, int discount)
+{
+    if(m->model_data(rowP, "ch_suitflag").toString() == "P") {
+        rowP ++;
+        for(; rowP < m->rowCount(); rowP ++) {
+            if(m->model_data(rowP, "ch_suitflag").toString() == "Y") {
+                if(m->can_discount(rowP)) {
+                    m->model_data_set(rowP, "int_discount", discount);
+                }
+                continue;
+            }
+            break;
+        }
+    }
+}
+
+QString fexpandmain_2::get_sub_vch_print_memo(const QString &org, const QString &sub)
+{
+    QString org0 = org;
+    org0.remove(org0.indexOf(sub), sub.length());
+    return org0;
+
+}
+
+bool fexpandmain_2::guqing_check(QString &msg, const QString &ch_dishno, float off)
+{
+    float num_guqing_num = 0;
+
+    off = qRound(100*off)/100.0;
+    lds_query query;
+
+    //菜品估清清除
+    guqing_try_clear();
+
+    query.exec(QString(" select num_guqing_num, vch_dishname from cey_bt_dish where ch_dishno = '%1' and ifnull(ch_guqing_flag, '') = 'Y'  ")
+               .arg(ch_dishno));
+    if(query.next()) {
+        num_guqing_num = query.record().value("num_guqing_num").toFloat();
+        bool num_guqing_flag = (off) > num_guqing_num;
+        if(num_guqing_flag) {
+            msg +=  QString("%1\t").arg(tr("估清不足")).arg(num_guqing_num-off);
+        } else {
+            msg +=  QString("%1:%2\t").arg(tr("估清剩余")).arg(num_guqing_num-off);
+        }
+        msg += query.record().value("vch_dishname").toString() + "\n";
+
+        if(num_guqing_flag) return false;
+    }
+    return  true;
+}
+
+void fexpandmain_2::guqing_try_clear()
+{
+    lds_query query;
+    QString sql_dt_yyyyMMdd = n_func::f_get_sysdatetime().toString("yyyy-MM-dd");
+    QString guqing_clear_day = wxmanager::f_get_sysparm("guqing_clear_day", "");
+
+    //第一次进入
+    if(guqing_clear_day.isEmpty()) {
+        guqing_clear_day =  sql_dt_yyyyMMdd;
+        wxmanager::f_set_sysparm("guqing_clear_day", sql_dt_yyyyMMdd);
+    }
+    if(guqing_clear_day != sql_dt_yyyyMMdd) {
+        query.exec(QString(" update cey_bt_dish set ch_guqing_flag = 'N',num_guqing_num = 0   "));//初始化菜品估清
+        wxmanager::f_set_sysparm("guqing_clear_day", sql_dt_yyyyMMdd);
+    }
+}
+
+bool fexpandmain_2::guqing_update(const QString &ch_dishno, float off)
+{
+    if(off == 0) return true;
+
+    lds_query query;
+    query.exec(QString("select ch_guqing_flag from cey_bt_dish where ch_dishno = '%1' ").arg(ch_dishno));
+    query.next();
+    QString ch_guqing_flag = query.record().value("ch_guqing_flag").toString();
+    if("Y" == ch_guqing_flag) {
+        if(!query.exec(QString(" update cey_bt_dish set num_guqing_num = num_guqing_num - %1 where ch_dishno = '%2' ")
+                       .arg(off)
+                       .arg(ch_dishno)
+                       ))
+            return false;
+    }
+    return true;
+}
+
+bool fexpandmain_2::guqing_try_check_P(QString &msg, int rowP, float off)
+{
+    if(off == 0) return true;//0表示没有改变
+
+    float dish_num = tablemodel->model_data_NIBOLAN(rowP, "num_num-num_back");
+    QString ch_dishno = tablemodel->model_data(rowP, "ch_dishno").toString();
+
+    if(dish_num == 0) {
+        qDebug() << __FILE__<<__LINE__ << "number is 0";
+    }
+    float off_rate_P_new_old = off / dish_num;
+    if(!guqing_check(msg, ch_dishno, off)) return false;
+
+    for(int row = rowP+1; row < tablemodel->rowCount(); row++) {
+        if(tablemodel->model_data(row, "ch_suitflag").toString() == "Y") {
+            ch_dishno = tablemodel->model_data(row, "ch_dishno").toString();
+            dish_num = tablemodel->model_data_NIBOLAN(row, "num_num-num_back");
+            if(!guqing_check(msg, ch_dishno, dish_num * off_rate_P_new_old)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool fexpandmain_2::material_insert(lds_query &query, const QString &ch_billno, int int_id)
+{
+    bool f = false;
+
+    //原料----点菜流水号
+    query.exec(QString(" select int_flowid, num_num, num_back, ch_dishno from cey_u_orderdish where ch_billno = '%1' and int_id = %2 ")
+               .arg(ch_billno)
+               .arg(int_id));
+    if(query.next()) {
+        QString int_flowid = query.record().value("int_flowid").toString();
+        QString ch_dishno = query.record().value("ch_dishno").toString();
+        float num_num = query.record().value("num_num").toFloat();
+        float num_back = query.record().value("num_back").toFloat();
+
+        query.exec(QString(" select * from material_u_orderdish where int_order_flowID = %1 ")
+                   .arg(int_flowid));
+        if(query.next()) {
+            f = query.exec(QString(" update material_u_orderdish set num_num=%1 * num_rate, num_back= %2 * num_rate where  int_order_flowID = %3 ")
+                           .arg(num_num)
+                           .arg(num_back)
+                           .arg(int_flowid)
+                           );
+            
+        } else {
+            f = query.exec(QString(
+                               "      insert into material_u_orderdish (int_order_flowID, ch_dishno, num_num, num_back, num_rate)"
+                               "      select "
+                               "          %1 as int_order_flowID,"
+                               "          ch_itemno,"
+                               "          num_num * %2 as `num_num`,"
+                               "          num_num * %3 as `num_back`,"
+                               "          num_num as `num_rate`"
+                               "      from"
+                               "         material_bt_dish"
+                               "    where"
+                               "         ch_dishno = '%4';"
+                               )
+                           .arg(int_flowid)
+                           .arg(num_num)
+                           .arg(num_back)
+                           .arg(ch_dishno)
+                           );
+            
+        }
+    }
+
+    return f;
+}
+
+void fexpandmain_2::set_discount_1_suit_Y(int rowP, int discount)
+{
+    set_discount_1_suit_Y(tablemodel, rowP, discount);
+}
+
+vch_membernoData::vch_membernoData()
+{
+    init();
+}
+
+void vch_membernoData::init()
+{
+    ch_attribute = "";//1：优惠卡、2充值卡
+    ch_favourable = "";//1会员价, 2固定折扣
+    ch_pricekind = "";
+    int_discount = -1;
+    ch_member_belong_state = "";
+    vch_memberno = "";
+}
+
+void vch_membernoData::init(const QString &vch_memberno, const QString &ch_member_belong_state, const QString &ch_favourable, int int_discount, const QString &ch_pricekind, const QString &ch_attribute, const QString &vch_typename)
+{
+    this->ch_attribute = ch_attribute;//1：优惠卡、2充值卡
+    this->ch_favourable = ch_favourable;//1会员价, 2固定折扣
+    this->ch_pricekind = ch_pricekind;
+    this->int_discount = int_discount;
+    this->ch_member_belong_state = ch_member_belong_state;
+    this->vch_memberno = vch_memberno;
+    this->vch_typename = vch_typename;
+}
+
+//                  福
+
+bool vch_membernoData::init_by_memberno(QWidget *parent, const QString &memberno, const QString &ch_member_belong_state)
+{
+    lds_query query;
+    QString ch_typeno;
+    bool ok;
+    vch_memberno = memberno;
+    this->ch_member_belong_state = ch_member_belong_state;
+
+    if(!vch_memberno.isEmpty()) {
+        if("Y" == ch_member_belong_state) {//云会员
+            ch_typeno=w_sys_manage_cloudsync::get_yun_member_readcard(parent, vch_memberno, lds::f_get_sysparm("cloud_user"),
+                                                                      "ch_typeno", ok);if(!ok) goto failure;
+            ch_attribute=w_sys_manage_cloudsync::get_yun_member_readcard(parent, vch_memberno, lds::f_get_sysparm("cloud_user"),
+                                                                         "ch_attribute", ok);if(!ok) goto failure;
+            ch_favourable=w_sys_manage_cloudsync::get_yun_member_membertype(parent, ch_typeno,
+                                                                            "chFavourable", ok);if(!ok) goto failure;
+            ch_pricekind=w_sys_manage_cloudsync::get_yun_member_membertype(parent, ch_typeno,
+                                                                           "chPricekind", ok);if(!ok) goto failure;
+            int_discount=w_sys_manage_cloudsync::get_yun_member_membertype(parent, ch_typeno,
+                                                                           "intDiscount", ok).toInt();if(!ok) goto failure;
+            vch_typename=w_sys_manage_cloudsync::get_yun_member_readcard(parent, vch_memberno, lds::f_get_sysparm("cloud_user"),
+                                                                         "vch_typename", ok);if(!ok) goto failure;
+
+            return true;
+        } else  {//本地会员
+            query.exec(QString(
+                           " SELECT a.vch_memberno,a.vch_member,a.ch_typeno,a.vch_tel, a.vch_handtel,  a.dt_birthday , a.ch_state ,a.vch_password ,a.dt_limit,a.ch_cardflag ,b.int_card_baseamount,"
+                           " b.ch_attribute, b.ch_favourable, b.ch_pricekind, b.int_discount,b.vch_typename ,c.num_amount, c.num_point"
+                           " FROM t_m_member a "
+                           " left join t_m_member_type b on a.ch_typeno = b.ch_typeno "
+                           " left join t_m_curamount c on a.vch_memberno = c.vch_memberno"
+                           " where a.ch_typeno = b.ch_typeno and b.ch_attribute like '%'  and a.vch_memberno = '%1' "
+                           )
+                       .arg(vch_memberno));
+            query.next();
+            ch_attribute=query.record().value("ch_attribute").toString();
+            ch_favourable=query.record().value("ch_favourable").toString();
+            ch_pricekind=query.record().value("ch_pricekind").toString();
+            int_discount=query.record().value("int_discount").toInt();
+            vch_typename=query.record().value("vch_typename").toString();
+            return true;
+        }
+    }
+    //会员号为空
+    init();
+    return true;
+failure:
+    init();
+    return false;
+}
+
+QString vch_membernoData::desc()
+{
+    QString retv;
+    retv += QObject::tr("会员类型")+"\t:"+vch_typename+"\n";
+
+    if(!vch_memberno.isEmpty()) {
+        if(isyun()) {
+            retv = QObject::tr("云");
+        }
+        if(ch_attribute == "1") {
+            retv += QObject::tr("优惠卡")+"\t:" + vch_memberno;
+        }
+        if(ch_attribute == "2") {
+            retv += QObject::tr("充值卡")+"\t:" + vch_memberno;
+        }
+
+        //        if(ch_favourable == "1") {
+        //            retv += QObject::tr("会员特价");
+        //        }
+        //        if(ch_favourable == "2"){
+        //            retv += QObject::tr("固定折扣")+QString("(%1)").arg(int_discount);
+        //        }
+    }
+    return retv;
+}
+
+QString vch_membernoData::color()
+{
+    if(isyun()) {
+        return "green";
+    }
+    return "#ff650b";
+}
+
+QString vch_membernoData::paymodeno()
+{
+    if(isyun()) {
+        return "10";
+    }
+    return "02";
+}
+
+vch_membernoData::chooseFlag vch_membernoData::mutil_choose()
+{
+    /*第一次读卡，且没有开启云会员*/if(vch_memberno.isEmpty() && !(lds::sysconf->value("w_sys_manage_cloudsync_with_time/cloud_yun_member", false).toBool())) return  vch_membernoData::choose_local;
+    /*第一次读卡，且开启云会员，且禁止本地会员*/if(vch_memberno.isEmpty()
+                               && lds::sysconf->value("w_sys_manage_cloudsync_with_time/cloud_yun_member", false).toBool()
+                               && lds::sysconf->value("w_sys_manage_cloudsync_with_time/cloud_no_use_local_member", false).toBool()
+                               ) return  vch_membernoData::choose_yun;
+    /*已经读过卡，且之前是云会员*/if(!vch_memberno.isEmpty() && "Y" == ch_member_belong_state) return  vch_membernoData::choose_yun;
+    /*已经读过卡，且之前是非会员*/if(!vch_memberno.isEmpty() && "Y" != ch_member_belong_state) return  vch_membernoData::choose_local;
+
+    return  vch_membernoData::choose_switch;
+}
+
+void vch_membernoData::print()
+{
+    qDebug() << "vch_memberno" << vch_memberno;
+    qDebug() << "ch_attribute" << ch_attribute;
+    qDebug() << "ch_favourable" << ch_favourable;
+    qDebug() << "ch_pricekind" << ch_pricekind;
+    qDebug() << "int_discount" << int_discount;
+    qDebug() << "ch_member_belong_state" << ch_member_belong_state;
+}
+
+bool vch_membernoData::isyun() const
+{
+    return "Y" == ch_member_belong_state;
+}
+
+bool vch_membernoData::ismprice() const
+{
+    if(!vch_memberno.isEmpty() && ch_favourable == "1" && ch_pricekind == "1" ) {
+        return true;
+    }
+    return false;
+}
+
+bool vch_membernoData::ismdiscount() const
+{
+    if(!vch_memberno.isEmpty() && ch_favourable == "2") {
+        return true;
+    }
+    return false;
+}
+
+float vch_membernoData::mprice(float org_price, float m_price) const
+{
+    if(ismprice()) {
+        return m_price;
+    }
+    return org_price;
+}
+
+QString vch_membernoData::mprice_sql() const
+{
+    ///会员价：原价等于现价、～赠送、～子套菜
+    QString arg0 = "if(a.num_price_org = a.num_price and a.ch_presentflag <> 'Y'  and a.ch_suitflag <> 'Y' , b.num_m_price , a.num_price)";
+    return arg0;
+}

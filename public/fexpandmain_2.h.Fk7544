@@ -1,0 +1,140 @@
+#ifndef FEXPANDMAIN_2_H
+#define FEXPANDMAIN_2_H
+
+#include <QDialog>
+#include <QItemDelegate>
+#include <QTableView>
+#include "lds_model_sqltablemodel.h"
+#include <QMouseEvent>
+#include "fexpandmain_tableview.h"
+#include "ftableview_standmodel_sql.h"
+#include "frontviewdialog_virtual.h"
+#include <QStyledItemDelegate>
+#include "lds_query.h"
+
+class w_scr_dish_pay;
+class fexpandmain_model_sqltablemodel;
+
+class fexpandmain_delegate : public QStyledItemDelegate{
+    Q_OBJECT
+public:
+    fexpandmain_delegate(QObject *parent = 0);
+    void keepConnect(fexpandmain_tableview *tableview);
+
+    // painting
+    void paint(QPainter *painter,
+               const QStyleOptionViewItem &option,
+               const QModelIndex &index) const;
+    void drawDish(QPainter *painter, const QRect &option_rect, const QModelIndex &index, bool isselected) const;
+    QString getCurNameColor(const QString &ch_suitflag) const;
+
+    int *border;
+    QString *divcolor;
+    QString *namecolor;
+    QString *namesubcolor;
+    QString *defColor;
+    QString unitprefix;
+protected:
+    virtual const fexpandmain_model_sqltablemodel *get_tablemodel_byindex(const QModelIndex &index)const;
+};
+
+namespace Ui {
+class fexpandmain_2;
+}
+
+class fexpandmain_2 : public frontViewDialog_virtual
+{
+    Q_OBJECT
+public:
+    static void showPayinfo(QWidget *tableview,  QFrame *&pay, const QString &ch_payno, int pay_type );
+    virtual void to_dish_title_other(const QString &num, const QString &total){}
+    virtual void to_dish_title(float num,  float total){}
+    virtual float get_cur_num(){}
+    static QString get_vch_dishname_by_sql(const QString &ch_dishno);
+    static QString get_ch_curprice_by_sql(const QString &ch_dishno);
+    static QString get_ch_discount_by_sql(const QString &ch_dishno);
+    static QString get_num_m_price_by_sql(const QString &ch_dishno);
+    static bool tryDiscount(QString &errstring, const QSqlTableModel *model, int row);
+    static bool sql_discount_m(QString &errstring, const QString &ch_billno, const int_discountData &d, const QString &vch_memberno, bool isyun);
+    static bool sql_discount(QString &errstring, const QString &ch_billno, const int_discountData &d);
+    static bool sql_num_m_price_m(QString &errstring, const QString &ch_billno, const QString &vch_memberno, bool isyun);
+    static bool tryNum(QString &errstring, const QSqlTableModel *model, int row);
+    static bool static_toquit_1_only(QString &errstring, const num_backData &d, qlonglong int_flowid, const QString &vch_reason, QSqlDatabase db = QSqlDatabase());
+    static bool static_toquit_1_suit(QString &errstring,
+                                     float &dishnum_back_total, QMap<qlonglong, num_backData> *d_map,
+                                     qlonglong int_flowid, const QString &vch_reason, const QString &operid, QSqlDatabase db = QSqlDatabase());
+
+    void set_num_1_suit_P(int rowP, float numP);
+    void set_num_1_suit_Y(int rowP, float numP, float numP_org);
+
+public:
+    explicit fexpandmain_2(QWidget *parent = 0);
+    ~fexpandmain_2();
+
+    void setrestaurantshow(int type);
+public:
+    void initData(const QString &ch_billno);
+    void torefresh();
+    QString get_ch_billno();
+    bool checkcanadded(int row);
+
+public slots:
+    ///点菜部分
+    ///
+    void tochange();
+    void toquitdish();
+public:
+    bool to_m_read();
+    bool saveData(QString &errstring);
+    ///
+    ///点菜部分
+public slots:
+
+public slots:
+    ///菜品的修改删除新增
+    void todishclicked(const QString &ch_dishno);
+    bool to_dish_del(int row, QString &errstring);
+    //菜品的修改删除新增
+public:
+    void todish_fill_data(const lds_query &query, const QDateTime &dt, int row);
+    void todish_fill_mdata(int row);
+    void todish_fill_mdata();
+public slots:
+    void to_payfor_info(const QString &ch_payno, int paytype);
+    ///外卖--快餐
+    bool towaimai();
+    void towaimaipay();
+    void toweixinwaimai();
+    void toweixinquitbill();
+    void toweixinbill_import();
+
+
+    ///----------------------------------------------begin--------------------------------------------------////
+public:
+    qreal step() const;
+    void setstep(qreal value);
+    qreal valuestep;
+public slots:
+    void tosetsmartorder();
+    void toupdateDishImage(const QModelIndex &index);
+signals:
+    void signalstepstart();
+    void signalstepstop();
+
+    ///----------------------------------------------end--------------------------------------------------////
+private slots:
+    void update_pay_info_set_empty();
+    void to_update_num_total(float n, float t);
+    void todown();
+    void toup();
+public:
+    Ui::fexpandmain_2 *ui;
+    fexpandmain_model_sqltablemodel *tablemodel;
+    vch_membernoData  vch_membernod;
+    ftableview_standmodel_sql *model_type, *model_subtype, *model_dish;
+private:
+    int _type;//中餐、快餐
+    QFrame *paywidget;
+};
+
+#endif // FEXPANDMAIN_2_H

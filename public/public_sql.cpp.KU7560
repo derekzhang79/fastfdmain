@@ -1,0 +1,2769 @@
+#include <QSqlError>
+#include <QApplication>
+#include <QFile>
+#include <QDir>
+#include "n_func.h"
+#include <QDebug>
+#include <QSqlRecord>
+#include <qdir.h>
+#include <QDirIterator>
+#include "backheader.h"
+#include <QSqlDriver>
+#include "clientdisplay.h"
+#include <QSqlRecord>
+#include "lds_messagebox.h"
+#include "public_encryption_dog.h"
+#include <QFontDatabase>
+#include "w_sys_manage_sqlcopy.h"
+#include "lds.h"
+#include "lds_dialog_input.h"
+#include "public_logindialog.h"
+#include "lds_application.h"
+#include "ldslight.h"
+#include "w_sys_manage_wirelessordermonitoring.h"
+#include "lds_dialog_switch.h"
+#include "publicallpollingshow_little.h"
+#include <QFileDialog>
+#include <QDateTime>
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+#include <QtConcurrent>
+#else
+#include <QtCore>
+#endif
+#include "frontviewdialog_virtual.h"
+#include "w_sys_manage_outer_bill_preview.h"
+#include "w_sys_manage_cloudsync_with_time.h"
+#include "public_short_cut_map.h"
+#include "printer_pos.h"
+#include <QSqlDatabase>
+
+
+QString public_sql::dbHostName;
+QString public_sql::dbDatabaseName;
+QString public_sql::dbUserName;
+QString public_sql::dbPassword;
+
+bool public_sql::islocal;
+QString public_sql::localdbHostName;
+QString public_sql::localdbDatabaseName;
+QString public_sql::localdbUserName;
+QString public_sql::localdbPassword;
+
+QString public_sql::MySQL_info;
+QString public_sql::init_sql_file_root;//userdata
+QString public_sql::sql_danwei = "sql";
+QString public_sql::sql_backup_dir;
+QString public_sql::sql_table_export_dir;
+
+QString public_sql::show_empty_sql_file_dir;
+QString public_sql::show_empty_sql_file;
+
+QString public_sql::show_chinese_sql_file_dir;
+QString public_sql::show_chinese_sql_file;
+
+QString public_sql::show_english_sql_file_dir;
+QString public_sql::show_english_sql_file;
+
+QString public_sql::image_dish_dir;
+QString public_sql::image_double_screen_dir;
+
+QString public_sql::settings_txt_soft_limit_dir_file;
+
+QString public_sql::err_path_arg = "<span style=\" color:#ff650b;\">%1</span>"
+                                   "<span style=\" color:#000000;\">%2</span>";
+
+QList<public_sql::MySQL_SQLVERSION_DATA >public_sql::MySQL_sqlversion_data_content_list;
+
+QString public_sql::ftp_businessdataupload_dir;
+
+public_loginDialog *public_sql::save_login = 0;//保存前台的指针
+
+QString public_sql::gs_operid;
+QString public_sql::gs_opername;
+QString public_sql::gs_password;
+QString public_sql::gs_soft_ip;
+int public_sql::gi_productid = 4;
+QString public_sql::_u;
+QString public_sql::_p;
+QString public_sql::_d;
+//tr("数据库错误")+ QString::number(__LINE__)
+
+QString public_sql::msg_sql_error;
+QPoint public_sql::dialoglefttop;
+//----------------------------------------------------------------------- "0602014500d21003"
+//----------------------------------------------------------------------- "060202410101a71003"
+//false
+//----------------------------------------------------------------------- "0602034500e71003"
+//----------------------------------------------------------------------- "060204410101df1003"
+
+QMap<QString/*ch_tableno*/, bool> public_sql::preprinttablemap;
+QString public_sql::mysqlinstallpath;
+QMap<QString, QString> public_sql::sqlkeeptracemap;
+
+fexpandmain_2 *public_sql::widgetlist = 0;
+int public_sql::bp_fmt_num_dec;
+int public_sql::bp_fmt_price_dec;
+int public_sql::bp_fmt_amount_dec;
+
+QMap<QString/*update_xx*/, QString/*update xx()values()*/> public_sql::action_sql_map;
+
+QString public_sql::alipay_sys_service_provider_id = "2088511075880511";//"2016071601627725";
+QString public_sql::sql_total_by_cey_u_orderdish = " if(cey_u_orderdish.ch_presentflag = 'Y' , 0, ((cey_u_orderdish.num_num-cey_u_orderdish.num_back) * cey_u_orderdish.num_price + cey_u_orderdish.num_price_add)*0.01*cey_u_orderdish.int_discount) " ;
+
+QElapsedTimer public_sql::etimer;
+QStandardItemModel public_sql::OPER_KEY_MODEL;
+QMutex public_sql::hddpos_transaction_lock;
+
+static void PUBLIC_EXCUTE_MYSQL(QObject *receiver, int *flag_from, const QString &cmd , const QString &cmd_m)
+{
+    *flag_from=
+            ((system(cmd.toStdString().data())==0)? 1:0);
+    if(1 == *flag_from && !cmd_m.isEmpty()){
+        *flag_from=
+                ((system(cmd_m.toStdString().data())==0)? 1:0);
+    }
+
+    //由于备份之前移除了数据库,这次必须重启才会有效
+    QMetaObject::invokeMethod(receiver,
+                              "accept",
+                              Qt::QueuedConnection
+                              );
+}
+
+public_sql::public_sql(QObject *parent) :
+    QObject(parent)
+{
+
+}
+
+QString public_sql::get_MySQL_sqlversion()
+{
+    int version=MySQL_sqlversion_data_content_list.count();
+    //1.0->2.3 step 13
+    //1.0->1.1 step 1
+    return QString().sprintf("%.01f", (10+version)/10.0);
+}
+
+QString public_sql::MySQL_sqlversion_update(QWidget *parent, const QString &fromversion, lds_messagebox_loading *loading)
+{
+    QString sql_error;
+    QString toversion=get_MySQL_sqlversion();
+    QString _fromversion=fromversion;
+    if(_fromversion.isEmpty()) _fromversion="1.0";
+
+    if(_fromversion > toversion){
+        return  tr("数据库版本号大于软件版本号，请升级软件");
+    }
+    if(_fromversion==toversion){
+        return "";
+    }
+    //1.2>>1.8
+    int _from=_fromversion.toFloat()*10-10;
+    int _to= toversion.toFloat()*10-10;
+    //! <--transaction begin-->
+    lds_query::tran_saction();
+    lds_query query;
+    Pre_sql_update();
+
+    bool showwarn = false;
+    do{
+        int index = 0;
+        if(loading) loading->image_dynamic_run();
+        for(int count = MySQL_sqlversion_data_content_list[_from].normal_sql.count(); index < count; index++){
+            
+            if(query.exec(MySQL_sqlversion_data_content_list[_from].normal_sql[index])) continue;
+            if(showwarn){
+                switch(lds_messagebox::information(parent, tr("升级失败")+QString("%1/%2/%3").arg(index+1).arg(count).arg(_from+1),MySQL_sqlversion_data_content_list[_from].desc+tr("\n是否继续?"), tr("继续"), tr("取消"))){
+                case 0:
+                    showwarn = false;
+                    break;
+                case 1:
+                    goto sqlupdateend;
+                    break;
+                }
+            }
+        }
+        query.prepare("replace into cey_sys_sqlversion(sqlversion, sqlupdatetime)values(?, ?);");
+        query.addBindValue(QString().sprintf("%.01f", (_from+1+10)/10.0));
+        query.addBindValue(n_func::f_get_sysdatetime());
+        if(!query.exec()) {
+        }
+        _from++;
+    } while(_from<_to);
+
+sqlupdateend:
+    sql_error = query.lastError().text().trimmed();
+    if(sql_error.isEmpty()){
+        //! <--transaction commit-->
+        lds_query::com_mit();
+    } else {
+        //! <--transaction rollback-->
+        lds_query::roll_back();
+    }
+    return  "["+_fromversion+"]>>>["+toversion+"]"+(sql_error.isEmpty()? "success" : (tr("数据库错误")+ QString::number(__LINE__)));
+}
+
+bool public_sql::Other_sql_update()
+{
+    lds_query::tran_saction();
+
+    lds_query query;
+    ///若是打印机列表为空的话，会添加 lp0
+    query.exec("select count(*) from cey_bt_kitchen_print ");
+    query.next();
+    if(0 == query.record().value(0).toLongLong()){
+        if(query.exec("insert into cey_bt_kitchen_print(int_id, vch_printname, vch_printip, vch_printtype, vch_instype, int_paperwidth) values (10, 'P10', '/dev/usb/lp0', 0, 0, 32);")){
+        }
+    }
+    //退菜，退菜做法加价
+    query.exec(
+                //                "drop table cey_u_orderdish_print_tr;"
+                "CREATE TABLE `cey_u_orderdish_print_tr` ("
+                "`int_orderflow` int(11) NOT NULL ,"
+                "`vch_plan_k3o3_id` varchar(12)  ,"
+                "`vch_plan_k3o3_state` varchar(6) ,"
+                "`dt_operdate` datetime ,"
+                " `ch_billno`	varchar(15), "
+                " `ch_dishno`	varchar(7), "
+                "PRIMARY KEY (`int_orderflow`)"
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT ;"
+                );
+
+    ///tr_cey_u_orderdish_insert
+    query.exec(
+                "    DROP TRIGGER IF EXISTS tr_cey_u_orderdish_insert;\n"
+
+                "    CREATE TRIGGER tr_cey_u_orderdish_insert AFTER INSERT ON cey_u_orderdish FOR EACH ROW \n"
+
+                "   BEGIN"
+
+                "      DECLARE flowId integer;\n"
+                "      DECLARE dishno varchar(7);\n"
+                "  DECLARE numnum numeric(10, 3);\n"
+                "      DECLARE materialno varchar(7);\n"
+                "      DECLARE intflowId integer;\n"
+                "      DECLARE initqty numeric(16,4);\n"
+                "     DECLARE initprice numeric(16,4);\n"
+                "     DECLARE remainqty numeric(16,4);\n"
+                "    DECLARE remainprice numeric(16,4);\n"
+                "     DECLARE itemflag char(1);\n"
+
+                "     set flowId = NEW.int_flowId;\n"
+                "    set dishno = NEW.ch_dishno;\n"
+                "        set numnum = NEW.num_num - NEW.num_back;\n"
+
+                "       set itemflag = 'N';\n"
+                "        set itemflag = (select ifnull(item_flag,'N') from cey_bt_dish where ch_dishno = dishno);\n"
+
+                "     set materialno = dishno;\n"
+
+                "        insert into cey_u_orderdish_print_tr(int_orderflow, vch_plan_k3o3_id, vch_plan_k3o3_state, dt_operdate, ch_billno, ch_dishno) values (flowId, NEW.vch_plan_k3o3_id, NEW.vch_plan_k3o3_state, NEW.dt_operdate, NEW.ch_billno, NEW.ch_dishno);\n"
+
+                "       IF (materialno<>'' and itemflag = 'Y') THEN"
+
+                "         set intflowId = (select ifnull(max(int_flowId),0) from cey_st_material_flow where ch_materialno = materialno);\n"
+
+                "      IF (intflowId = 0) THEN"
+                "               set initqty = 0;\n"
+                "           ELSE"
+                "        set initqty = (select remain_qty from cey_st_material_flow where int_flowId = intflowId);\n"
+                "       END IF;\n"
+
+                "      IF (intflowId = 0) THEN"
+                "         set initprice = 0;\n"
+                "         ELSE"
+                "           set initprice = (select remain_price from cey_st_material_flow where int_flowId = intflowId);\n"
+                "       END IF;\n"
+
+                "    set remainqty  = initqty - numnum ;\n"
+
+                "          IF (remainqty = 0) THEN"
+                "          set remainprice = 0;\n"
+                "       ELSE"
+                "                set remainprice = initprice;\n"
+                "        END IF;\n"
+
+                "       insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,"
+                "               num_num, sheet_price, cost_price, remain_qty, remain_price, ch_sheetno )"
+                "          values (materialno,now(), 'QT', case when numnum > 0 then -1 else 1 end,"
+                "               case when numnum < 0 then -numnum else numnum end, 0, remainprice, remainqty, remainprice, LEFT(flowId,20));\n"
+
+
+                "      IF exists (select 1 from cey_st_material_num where ch_materialno = materialno) THEN"
+                "       update cey_st_material_num set num_num = remainqty, cost_price = remainprice"
+                "       where ch_materialno = materialno;\n"
+                "       ELSE"
+                "         insert into cey_st_material_num (ch_materialno, num_num, cost_price)"
+                "         values (materialno, remainqty, remainprice);\n"
+                "       END IF;\n"
+
+                "      END IF;\n"
+
+                "    END"
+                );
+
+    ///tr_cey_u_orderdish_update
+    query.exec(
+                "    DROP TRIGGER IF EXISTS tr_cey_u_orderdish_update;\n"
+
+                "    CREATE TRIGGER tr_cey_u_orderdish_update AFTER UPDATE ON cey_u_orderdish FOR EACH ROW \n"
+
+                "  BEGIN"
+                "    DECLARE m_done int default 0;\n"
+                "    DECLARE flowId integer;\n"
+                "    DECLARE dishno varchar(7);\n"
+                "    DECLARE numnum numeric(10, 3);\n"
+                "    DECLARE materialno varchar(7);\n"
+                "    DECLARE intflowId integer;\n"
+                "    DECLARE initqty numeric(16,4);\n"
+                "    DECLARE initprice numeric(16,4);\n"
+                "    DECLARE remainqty numeric(16,4);\n"
+                "    DECLARE remainprice numeric(16,4);\n"
+                "    DECLARE itemflag char(1);\n"
+
+
+                "  IF(NEW.int_flowId = OLD.int_flowId and NEW.num_back > OLD.num_back) THEN\n"
+
+                "    set flowId = NEW.int_flowId;\n"
+                "    set dishno = NEW.ch_dishno;\n"
+                "    set numnum = NEW.num_back - OLD.num_back;\n"
+
+                "    set itemflag = 'N';\n"
+                "    set itemflag = (select ifnull(item_flag,'N') from cey_bt_dish where ch_dishno = dishno);\n"
+                "      set materialno = dishno;\n"
+
+                "    IF (materialno<>'' and itemflag = 'Y')  THEN\n"
+
+                "         set intflowId = (select ifnull(max(int_flowId),0) from cey_st_material_flow where ch_materialno = materialno);\n"
+
+                "         IF (intflowId = 0) THEN\n"
+                "              set initqty = 0;\n"
+                "         ELSE\n"
+                "              set initqty = (select remain_qty from cey_st_material_flow where int_flowId = intflowId);\n"
+                "         END IF;\n"
+
+                "         IF (intflowId = 0) THEN\n"
+                "              set initprice = 0;\n"
+                "         ELSE\n"
+                "              set initprice = (select remain_price from cey_st_material_flow where int_flowId = intflowId);\n"
+                "         END IF;\n"
+
+                "         set remainqty = initqty + numnum ;\n"
+
+                "         IF (remainqty = 0)  THEN\n"
+                "              set remainprice = 0;\n"
+                "         ELSE\n"
+                "              set remainprice = initprice;\n"
+                "         END IF;\n"
+
+                "         insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,\n"
+                "                         num_num, sheet_price, cost_price, remain_qty, remain_price, ch_sheetno )\n"
+                "                 values (materialno,now(), 'QT', 1,\n"
+                "                         numnum, 0, remainprice, remainqty, remainprice, left(flowId,20));\n"
+
+                "        IF exists (select 1 from cey_st_material_num where ch_materialno = materialno) THEN\n"
+                "                 update cey_st_material_num set num_num = remainqty, cost_price = remainprice\n"
+                "                  where ch_materialno = materialno;\n"
+                "        ELSE\n"
+                "                 insert into cey_st_material_num (ch_materialno, num_num, cost_price)\n"
+                "                 values (materialno, remainqty, remainprice);\n"
+                "        END IF;\n"
+
+                "     END IF;\n"
+
+                "       END IF;\n"
+
+                " END\n"
+                );
+
+    ///tr_material_u_orderdish_update
+    query.exec(
+                "    DROP TRIGGER IF EXISTS tr_material_u_orderdish_update;\n"
+                "    CREATE TRIGGER tr_material_u_orderdish_update AFTER UPDATE ON material_u_orderdish FOR EACH ROW \n"
+                "      BEGIN"
+                "       DECLARE m_done int default 0;"
+                "     DECLARE flowId integer;"
+                "     DECLARE dishno varchar(7);"
+                "     DECLARE numnum numeric(10, 3);"
+                "  DECLARE materialno varchar(7);"
+                "    DECLARE intflowId integer;"
+                "       DECLARE initqty numeric(16,4);"
+                "      DECLARE initprice numeric(16,4);"
+                "     DECLARE remainqty numeric(16,4);"
+                "     DECLARE remainprice numeric(16,4);"
+                "       DECLARE itemflag char(1);"
+
+
+                "    IF(NEW.int_flowId = OLD.int_flowId and NEW.num_back > OLD.num_back) THEN"
+
+                "        set flowId = NEW.int_flowId;"
+                "      set dishno = NEW.ch_dishno;"
+                "      set numnum = NEW.num_back - OLD.num_back;"
+
+                "     set itemflag = 'N';"
+                "        set itemflag = (select ifnull(item_flag,'N') from cey_bt_dish where ch_dishno = dishno);"
+                "         set materialno = dishno;"
+
+                "        IF (materialno<>'' and itemflag = 'Y')  THEN"
+
+                "    set intflowId = (select ifnull(max(int_flowId),0) from cey_st_material_flow where ch_materialno = materialno);"
+
+                "       IF (intflowId = 0) THEN"
+                "             set initqty = 0;"
+                "    ELSE"
+                "         set initqty = (select remain_qty from cey_st_material_flow where int_flowId = intflowId);"
+                "      END IF;"
+
+                "        IF (intflowId = 0) THEN"
+                "          set initprice = 0;"
+                "    ELSE"
+                "      set initprice = (select remain_price from cey_st_material_flow where int_flowId = intflowId);"
+                "       END IF;"
+
+                "       set remainqty = initqty + numnum ;"
+
+                "        IF (remainqty = 0)  THEN"
+                "       set remainprice = 0;"
+                "      ELSE"
+                "       set remainprice = initprice;"
+                "        END IF;"
+                ////////////////////////////////////////////////////////////////////////////////////////原料
+
+                "           insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,"
+                "                     num_num, sheet_price, cost_price, remain_qty, remain_price, ch_sheetno )"
+                "          values (materialno,now(), 'YL', 1,"
+                "                  numnum, 0, remainprice, remainqty, remainprice, left(flowId,20));"
+
+                "     IF exists (select 1 from cey_st_material_num where ch_materialno = materialno) THEN"
+                "       update cey_st_material_num set num_num = remainqty, cost_price = remainprice"
+                "      where ch_materialno = materialno;"
+                "          ELSE"
+                "           insert into cey_st_material_num (ch_materialno, num_num, cost_price)"
+                "              values (materialno, remainqty, remainprice);"
+                "      END IF;"
+
+                "     END IF;"
+
+                "          END IF;"
+
+                "   END"
+
+                );
+    ///tr_material_u_orderdish_insert
+    query.exec(
+                "    DROP TRIGGER IF EXISTS tr_material_u_orderdish_insert;\n"
+
+                "    CREATE TRIGGER tr_material_u_orderdish_insert AFTER INSERT ON material_u_orderdish FOR EACH ROW \n"
+
+                "       BEGIN"
+
+                "        DECLARE flowId integer;"
+                "       DECLARE dishno varchar(7);"
+                "      DECLARE numnum numeric(10, 3);"
+                "      DECLARE materialno varchar(7);"
+                "      DECLARE intflowId integer;"
+                "      DECLARE initqty numeric(16,4);"
+                "       DECLARE initprice numeric(16,4);"
+                "     DECLARE remainqty numeric(16,4);"
+                "    DECLARE remainprice numeric(16,4);"
+                "        DECLARE itemflag char(1);"
+
+                "       set flowId = NEW.int_flowId;"
+                "      set dishno = NEW.ch_dishno;"
+                "      set numnum = NEW.num_num - NEW.num_back;"
+
+                "        set itemflag = 'N';"
+                "        set itemflag = (select ifnull(item_flag,'N') from cey_bt_dish where ch_dishno = dishno);"
+
+                "       set materialno = dishno;"
+
+                "        IF (materialno<>'' and itemflag = 'Y') THEN"
+
+                "      set intflowId = (select ifnull(max(int_flowId),0) from cey_st_material_flow where ch_materialno = materialno);"
+
+                "       IF (intflowId = 0) THEN"
+                "         set initqty = 0;"
+                "      ELSE"
+                "          set initqty = (select remain_qty from cey_st_material_flow where int_flowId = intflowId);"
+                "    END IF;"
+
+                "      IF (intflowId = 0) THEN"
+                "      set initprice = 0;"
+                "       ELSE"
+                "        set initprice = (select remain_price from cey_st_material_flow where int_flowId = intflowId);"
+                "       END IF;"
+
+                "        set remainqty  = initqty - numnum ;"
+
+                "     IF (remainqty = 0) THEN"
+                "         set remainprice = 0;"
+                "     ELSE"
+                "          set remainprice = initprice;"
+                "       END IF;"
+
+                ////////////////////////////////////////////////////////////////////////////////////////原料
+                "           insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,"
+                "              num_num, sheet_price, cost_price, remain_qty, remain_price, ch_sheetno )"
+                "        values (materialno,now(), 'YL', case when numnum > 0 then -1 else 1 end,"
+                "               case when numnum < 0 then -numnum else numnum end, 0, remainprice, remainqty, remainprice, LEFT(flowId,20));"
+
+
+                "      IF exists (select 1 from cey_st_material_num where ch_materialno = materialno) THEN"
+                "            update cey_st_material_num set num_num = remainqty, cost_price = remainprice"
+                "          where ch_materialno = materialno;"
+                "       ELSE"
+                "       insert into cey_st_material_num (ch_materialno, num_num, cost_price)"
+                "      values (materialno, remainqty, remainprice);"
+                "      END IF;"
+
+                "       END IF;"
+
+                "       END"
+                );
+
+
+
+    ///cey_u_orderdish_log
+    query.exec( "alter table cey_u_orderdish_log change column num_back_cur num_back_cur DECIMAL(12, 3)  default 0");
+
+
+    w_sys_manage_outer_bill_preview::if_bill_empty_import_58_def();
+
+
+    ///实时上传，del和数据更新字段时，需要同步
+    w_sys_manage_cloudsync_with_time_running::sql_update();
+
+
+    lds_query::com_mit();
+    return false;
+}
+
+bool public_sql::Pre_sql_update()
+{
+    lds_query query;
+    ////
+    Pre_sql_update_one(query, "material_bt_dish", 5);
+    ////
+    Pre_sql_update_one(query, "del_material_bt_dish", 5);
+    ////
+    Pre_sql_update_one(query, "material_loss_apply", 8);
+    ////
+    Pre_sql_update_one(query, "material_loss_apply_detail", 10);
+    ////
+    Pre_sql_update_one(query, "material_purchase_apply", 7);
+    ///
+    Pre_sql_update_one(query, "material_purchase_apply_detail", 9);
+    ////
+    Pre_sql_update_one(query, "material_purchase_in_storage", 8);
+    ////
+    Pre_sql_update_one(query, "material_purchase_in_storage_detail", 10);
+    ////
+    Pre_sql_update_one(query, "material_u_orderdish", 7);
+
+    return true;
+}
+
+bool public_sql::Pre_sql_update_one(lds_query &query, const QString &tablename, int count)
+{
+    query.exec(QString(" select count(0) from information_schema.columns where table_schema='hddpos' and table_name='%1'   ")
+               .arg(tablename));
+    query.next();
+    if(count != query.record().value(0).toInt()) {
+        query.exec("drop table "+tablename);
+    }
+}
+
+void public_sql::PUBLIC_SQL_INIT()
+{
+    QString init_sql_file_dir = lds::fastfd_localdata();
+    if(init_sql_file_root.isEmpty()){
+#if defined(QT_DEBUG) || defined (Q_OS_WIN)
+        init_sql_file_root=qApp->applicationDirPath();
+#else
+        init_sql_file_root="/userdata";
+#endif
+    }
+    if(show_empty_sql_file_dir.isEmpty()){
+        show_empty_sql_file_dir = "userdata/settings/sql";
+        show_chinese_sql_file_dir = "userdata/settings/sql";
+        show_english_sql_file_dir = "userdata/settings/sql";
+
+        show_empty_sql_file="sql_empty_data";
+        show_chinese_sql_file="sql_chinese_data";
+        show_english_sql_file="sql_english_data";
+    }
+
+    if(settings_txt_soft_limit_dir_file.isEmpty()){
+        settings_txt_soft_limit_dir_file = init_sql_file_dir+"/fastfd_limit.txt";
+    }
+
+    if(sql_backup_dir.isEmpty()){
+        sql_backup_dir =  init_sql_file_dir+"/"+"sql_backup_dir";
+    }
+    if(sql_table_export_dir.isEmpty()){
+        sql_table_export_dir =  init_sql_file_dir+"/"+"sql_table_export_dir";
+    }
+
+    if(image_dish_dir.isEmpty()){
+        image_dish_dir =  init_sql_file_dir+"/"+"image_dish_dir";
+    }
+    if(image_double_screen_dir.isEmpty()){
+        image_double_screen_dir =  init_sql_file_dir+"/"+"image_double_screen_dir";
+    }
+    if(ftp_businessdataupload_dir.isEmpty()){
+        ftp_businessdataupload_dir = init_sql_file_dir+"/"+"ftp_businessdataupload";
+    }
+
+    //! 本地厨打单 等于1 为80
+    //vfd开机客显
+    ClientDisplay display(lds::sysconf->value("system_setting/kexianleixing").toString());
+    display.startShowinfo(lds::sysconf->value("system_setting/kexian_vfd_start").toString(),
+                          lds::sysconf->value("system_setting/kexianduankou").toString());
+
+    //数据库升级的详细内容
+    //1.1 厨打补充的说明
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << "alter table cey_bt_kitchen_print change vch_printid vch_printip VARCHAR(32);"
+                                                  << "alter table cey_bt_kitchen_print add column vch_printport VARCHAR(32);"
+                                                  , tr("1.1")// 厨打补充的说明")
+                                                  ));
+    //1.2称重属性,条码
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << "alter table cey_bt_dish add column ch_weight VARCHAR(1);"
+                                                  << "alter table cey_bt_dish add column vch_barcode  VARCHAR(64);"
+                                                  , tr("1.2")//称重属性,条码")
+                                                  ));
+    //1.3操作员权限
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  <<
+                                                  "insert into cey_sys_purview_list(ch_purviewno, vch_purviewname, ch_day_cue, ch_open_type, vch_window, vch_purview_typename, ch_purview_typeno, ch_report, vch_withparm) values('0910','MySQL服务器','N', 'EDIT',null, '系统管理', '09', 'N', null);"
+                                                  "insert into cey_sys_purview_list(ch_purviewno, vch_purviewname, ch_day_cue, ch_open_type, vch_window, vch_purview_typename, ch_purview_typeno, ch_report, vch_withparm) values('0911','文件管理器','N', 'EDIT',null, '系统管理', '09', 'N', null);"
+                                                  "insert into cey_sys_purview_list(ch_purviewno, vch_purviewname, ch_day_cue, ch_open_type, vch_window, vch_purview_typename, ch_purview_typeno, ch_report, vch_withparm) values('0912','无线点菜监控','N', 'EDIT',null, '系统管理', '09', 'N', null);"
+                                                  "insert into cey_sys_purview_list(ch_purviewno, vch_purviewname, ch_day_cue, ch_open_type, vch_window, vch_purview_typename, ch_purview_typeno, ch_report, vch_withparm) values('0913','云同步','N', 'EDIT',null, '系统管理', '09', 'N', null);"
+                                                  , tr("1.3")//操作员权限")
+                                                  ));
+    //1.4流水号
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('serial_no_begin', 0, '开始流水号');"
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('serial_no_end', 999, '结束流水号');"
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('serial_no_now', 0, '开始流水号');"
+                                                  , tr("1.4")//流水号")
+                                                  ));
+    //1.5打印中倍高倍宽
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('bp_dishname_left', 1, '账单品名左空');"
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('bp_unit_left', 1, '账单品码左空');"
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('bp_num_left', 1, '账单数量左空');"
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('bp_price_left', 1, '账单价格左空');"
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('bp_amount_left', 1, '账单金额左空');"
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('bp_discount_left', 1, '账单折扣左空');"
+                                                  <<"replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('bp_content_len', '00', '账单内容是否倍高倍宽');"//00 10 11
+                                                  , tr("1.5")//打印中倍高倍宽")
+                                                  ));
+    //1.6 南京国际广场的，数据采集
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  <<
+                                                  "CREATE TABLE IF NOT EXISTS cey_web_data_collection("
+                                                  "id varchar(20) NOT NULL UNIQUE,"
+                                                  "service_ip varchar(100) NOT NULL,"
+                                                  "service_port varchar(100) NOT NULL,"
+                                                  "service_action varchar(100) NOT NULL,"
+                                                  "service_method_name varchar(100) NOT NULL,"
+                                                  "service_method_uri varchar(100) NOT NULL,"
+                                                  "service_submit_path varchar(100) NOT NULL,"
+
+                                                  "username varchar(20) NOT NULL,"
+                                                  "password varchar(20) ,"
+                                                  "messagetype varchar(20) NOT NULL,"
+                                                  "messageid varchar(20) NOT NULL,"
+                                                  "version varchar(20) NOT NULL,"
+
+                                                  "txdate_yyyymmdd date NOT NULL,"
+                                                  "txtime_hhmmss time NOT NULL,"
+                                                  "mallid varchar(20) NOT NULL,"
+                                                  "storecode varchar(20) NOT NULL,"
+                                                  "tillid varchar(20)  NULL,"
+                                                  "txdocno varchar(20) NOT NULL,"
+                                                  "cashier varchar(20)  NULL,"
+                                                  "salesman varchar(20)  NULL,"
+
+                                                  "itemcode varchar(20) NOT NULL,"
+                                                  "qty DECIMAL(10,2) NOT NULL,"
+                                                  "netamount DECIMAL(10,2) NOT NULL,"
+
+                                                  "ch_uploadflag varchar(1) NULL,"
+                                                  "ch_uploadmemo varchar(100) NULL"
+
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+                                                  <<
+                                                  "CREATE TABLE IF NOT EXISTS cey_web_data_collection_tendercode("
+                                                  "id varchar(20) NOT NULL,"
+                                                  "tendercode varchar(10) NOT NULL,"
+                                                  "baseamount DECIMAL(10,2) NULL"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+                                                  , tr("1.6 ")//南京国际广场的数据采集")
+                                                  ));
+    //1.7 菜品大类权限
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  <<
+                                                  "CREATE TABLE IF NOT EXISTS cey_bt_dish_type_oper("
+                                                  "vch_operid varchar(10) NOT NULL,"
+                                                  "ch_dish_typeno varchar(2) NOT NULL,"
+                                                  "ch_state char(1) NULL"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+                                                  , tr("1.7 ")//菜品大类权限")
+                                                  ));
+    //1.8 库存入库失败
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  , tr("1.8")// 库存入库失败")
+                                                  ));
+    //1.9 优惠
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << QString("update cey_bt_paymode set vch_paymodename = '%1' where ch_paymodeno='ZZ' ")
+                                                  .arg(tr("优惠"))
+                                                  , tr("1.9 ")//优惠")
+                                                  ));
+
+    //2.0微信支付信息
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  <<
+                                                  "CREATE TABLE IF NOT EXISTS cey_web_weixinpay("
+                                                  "out_trade_no nvarchar(32) NOT NULL UNIQUE,"
+                                                  "appid nvarchar(32) NOT NULL,"
+                                                  "appkey nvarchar(128) NOT NULL,"
+                                                  "mch_id nvarchar(32) NOT NULL"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+                                                  , tr("2.0")//微信支付信息")
+                                                  ));
+    //2.1 数据库入库审核失败和操作失败
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  <<
+                                                  "    DROP TRIGGER IF EXISTS tr_st_sheet_master_update;\n"
+                                                  "    CREATE TRIGGER tr_st_sheet_master_update AFTER UPDATE ON cey_st_sheet_master FOR EACH ROW \n"
+                                                  "    BEGIN\n"
+                                                  "        DECLARE m_de int default 0;\n"
+                                                  "        DECLARE m_done int default 0;\n"
+                                                  "        DECLARE sheetNo  varchar(12);\n"
+                                                  "        DECLARE sheetType varchar(2);\n"
+                                                  "        DECLARE operation varchar(3);\n"
+                                                  "        DECLARE dtaudit datetime;\n"
+                                                  "        DECLARE materialno varchar(7);\n"
+                                                  "        DECLARE numnum numeric(16,4);\n"
+                                                  "        DECLARE numpresent numeric(15,4);\n"
+                                                  "        DECLARE numprice numeric(16,4);\n"
+                                                  "        DECLARE costprice  numeric(16,4);\n"
+                                                  "        DECLARE unitrate numeric(16,2);\n"
+                                                  "        DECLARE intflowId integer;\n"
+                                                  "        DECLARE initqty   numeric(16,4);\n"
+                                                  "        DECLARE initprice numeric(16,4);\n"
+                                                  "        DECLARE remainqty numeric(16,4);\n"
+                                                  "        DECLARE remainprice numeric(16,4);\n"
+                                                  "        DECLARE num_amount numeric(16,2);\n"
+                                                  "        DECLARE cur_rows cursor for\n"
+                                                  "          select b.ch_materialno, b.num_wrapping, b.num_present,  b.num_price, ifnull(c.int_unit_rate,1)\n"
+                                                  "          from  cey_st_sheet_detail b, cey_bt_dish c\n"
+                                                  "          where NEW.ch_sheetNo = b.ch_sheetno and b.ch_materialno = c.ch_dishno;\n"
+                                                  "          DECLARE continue handler for not found set m_done = 1;\n"
+                                                  "       open cur_rows;\n"
+                                                  "       fetch cur_rows into  materialno, numnum, numpresent, numprice, unitrate;\n"
+                                                  "     WHILE (m_done = 0) DO \n"
+                                                  "          IF(NEW.ch_state = 'Y')THEN\n"
+                                                  "            set sheetNo = NEW.ch_sheetNo ;\n"
+                                                  "            set sheetType = NEW.ch_sheetType ;\n"
+                                                  "            set operation = NEW.ch_operation ;\n"
+                                                  "            set dtaudit = NEW.dt_audit ;\n"
+                                                  "            set intflowId = (select ifnull(max(int_flowId),0) from cey_st_material_flow  where ch_materialno = materialno);\n"
+                                                  "            IF (intflowId = 0) THEN \n"
+                                                  "              set initqty =  0 ;\n"
+                                                  "            ELSE\n"
+                                                  "              set initqty = (select remain_qty from cey_st_material_flow where int_flowId = intflowId);\n"
+                                                  "            END IF;\n"
+                                                  "            IF (intflowId = 0) THEN\n"
+                                                  "              set initprice =  0 ;\n"
+                                                  "            ELSE\n"
+                                                  "              set initprice = (select remain_price from cey_st_material_flow where int_flowId = intflowId);\n"
+                                                  "            END IF;\n"
+                                                  "            IF (sheetType = 'RK')  THEN\n"
+                                                  "                 set remainqty = initqty + numnum;\n"
+                                                  "                 IF (remainqty = 0) THEN\n"
+                                                  "                    set remainprice = 0;\n"
+                                                  "                 ELSE\n"
+                                                  "                    set remainprice = (abs(((numnum / unitrate) * numprice  + initqty * initprice) / remainqty));\n"
+                                                  "                 END IF;\n"
+                                                  "                 insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,\n"
+                                                  "                           num_num, sheet_price, cost_price, chg_amount, remain_qty, remain_price, ch_sheetno)\n"
+                                                  "                   values (materialno, now(), sheetType, 1, numnum, numprice / unitrate, remainqty, 0, remainqty, remainprice, sheetNo);\n"
+                                                  "                 IF (numpresent > 0) THEN\n"
+                                                  "                      set initqty = remainqty;\n"
+                                                  "                      set initprice = remainprice;\n"
+                                                  "                      set remainqty = initqty + numpresent;\n"
+                                                  "                      IF (remainqty = 0) THEN\n"
+                                                  "                         set remainprice = 0;\n"
+                                                  "                      ELSEIF (initqty < 0 and remainqty > 0) THEN \n"
+                                                  "                             set remainprice = numprice / unitrate;\n"
+                                                  "                      ELSE \n"
+                                                  "                            set remainprice = abs((initqty * initprice) / remainqty);\n"
+                                                  "                      END IF;\n"
+                                                  "                      insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,\n"
+                                                  "                             num_num, sheet_price, cost_price, chg_amount, remain_qty, remain_price, ch_sheetno)\n"
+                                                  "                      values (materialno, now(), sheetType, 1, numpresent, 0, remainprice, 0, remainqty, remainprice, sheetNo);\n"
+                                                  "                 END IF;\n"
+                                                  "                     IF exists ( Select * from cey_sys_parameter where vch_parameter = 'sys_stock_price' and vch_value = '1') THEN\n"
+                                                  "                    update cey_bt_dish set num_sale_price = numprice where ch_dishno = materialno;\n"
+                                                  "                 END IF;\n"
+                                                  "                 IF exists (select 1 from cey_st_material_num where ch_materialno = materialno) THEN\n"
+                                                  "                  update cey_st_material_num set num_num = remainqty, cost_price = remainprice\n"
+                                                  "                   where ch_materialno = materialno;\n"
+                                                  "                 ELSE \n"
+                                                  "                   insert into cey_st_material_num (ch_materialno, num_num, cost_price)\n"
+                                                  "                     values (materialno, remainqty, remainprice);\n"
+                                                  "                 END IF;\n"
+                                                  "            ELSEIF (sheetType = 'TH')  THEN\n"
+                                                  "                 set remainqty = initqty - numnum;\n"
+                                                  "                 IF (remainqty = 0) THEN\n"
+                                                  "                    set remainprice = 0;\n"
+                                                  "                 ELSE\n"
+                                                  "                    set remainprice = (abs((initqty * initprice - numnum / unitrate * numprice   ) / remainqty));\n"
+                                                  "                 END IF;\n"
+                                                  "                 insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,\n"
+                                                  "                           num_num, sheet_price, cost_price, chg_amount, remain_qty, remain_price, ch_sheetno)\n"
+                                                  "                   values (materialno, now(), sheetType, 1, numnum, numprice / unitrate, remainprice, 0, remainqty, remainprice, sheetNo);\n"
+                                                  "                 IF (numpresent > 0) THEN \n"
+                                                  "                      set initqty   = remainqty;\n"
+                                                  "                      set initprice = remainprice;\n"
+                                                  "                      set remainqty = initqty - numpresent;\n"
+                                                  "                      IF (remainqty = 0) THEN\n"
+                                                  "                         set remainprice = 0;\n"
+                                                  "                      ELSE\n"
+                                                  "                           set remainprice = abs((initqty * initprice) / remainqty);\n"
+                                                  "                      END IF;\n"
+                                                  "                      insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,\n"
+                                                  "                             num_num, sheet_price, cost_price, chg_amount, remain_qty, remain_price, ch_sheetno)\n"
+                                                  "                      values (materialno, now(), sheetType, 1, numpresent, 0, remainprice, 0, remainqty, remainprice, sheetNo);\n"
+                                                  "                  END IF;\n"
+                                                  "                 IF exists (select 1 from cey_st_material_num where ch_materialno = materialno) THEN\n"
+                                                  "                  update cey_st_material_num set num_num = remainqty, cost_price = remainprice\n"
+                                                  "                   where ch_materialno = materialno;\n"
+                                                  "                 ELSE \n"
+                                                  "                   insert into cey_st_material_num (ch_materialno, num_num, cost_price)\n"
+                                                  "                     values (materialno, remainqty, remainprice);\n"
+                                                  "                 END IF;\n"
+                                                  "            ELSEIF (sheetType = 'CK') THEN\n"
+                                                  "                 set remainqty = initqty - numnum;\n"
+                                                  "                 IF (remainqty = 0) THEN\n"
+                                                  "                    set remainprice = 0;\n"
+                                                  "                 ELSEIF (initqty < 0 and remainqty > 0) THEN\n"
+                                                  "                    set m_de = 1;\n"
+                                                  "                 ELSE \n"
+                                                  "                    set remainprice = abs((initqty * initprice - numnum / unitrate * numprice   ) / remainqty);\n"
+                                                  "                  END IF;\n"
+                                                  "                 insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,\n"
+                                                  "                           num_num, sheet_price, cost_price, chg_amount, remain_qty, remain_price, ch_sheetno)\n"
+                                                  "                   values (materialno, now(), sheetType, 1, numnum, numprice/unitrate, remainprice, 0, remainqty, remainprice, sheetNo);\n"
+                                                  "                 IF exists (select 1 from cey_st_material_num where ch_materialno = materialno) THEN\n"
+                                                  "                  update cey_st_material_num set num_num = remainqty, cost_price = remainprice\n"
+                                                  "                   where ch_materialno = materialno;\n"
+                                                  "                 ELSE \n"
+                                                  "                   insert into cey_st_material_num (ch_materialno, num_num, cost_price)\n"
+                                                  "                     values (materialno, remainqty, remainprice);\n"
+                                                  "                 END IF;\n"
+                                                  "            END IF;\n"
+                                                  "          END IF;\n"
+                                                  "          fetch cur_rows into  materialno, numnum, numpresent, numprice, unitrate;\n"
+                                                  "     END WHILE;\n"
+                                                  "      close cur_rows;\n"
+                                                  "    END\n"
+                                                  , tr("2.1")// 数据库入库审核失败和操作失败")
+                                                  ));
+    //2.2 支付方式里新增微信支付， 支付宝支付， 百度糯米， 大众，美团/ 数据库新增强制升级flag
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << "replace into cey_bt_paymode(ch_paymodeno, vch_paymodename, ch_IDflag, ch_faceflag, ch_changeflag, ch_incomeflag, ch_key) values('06','支付宝支付','N', 'N','N', 'Y', '');"
+                                                  << "replace into cey_bt_paymode(ch_paymodeno, vch_paymodename, ch_IDflag, ch_faceflag, ch_changeflag, ch_incomeflag, ch_key) values('07','百度糯米','N', 'N','N', 'Y', '');"
+                                                  << "replace into cey_bt_paymode(ch_paymodeno, vch_paymodename, ch_IDflag, ch_faceflag, ch_changeflag, ch_incomeflag, ch_key) values('08','大众点评','N', 'N','N', 'Y', '');"
+                                                  << "replace into cey_bt_paymode(ch_paymodeno, vch_paymodename, ch_IDflag, ch_faceflag, ch_changeflag, ch_incomeflag, ch_key) values('09','美团','N', 'N','N', 'Y', '');"
+
+                                                  << "alter table cey_bt_paymode add column vch_arg1  VARCHAR(128);"
+                                                  << "alter table cey_bt_paymode add column vch_arg2  VARCHAR(128);"
+                                                  << "alter table cey_bt_paymode add column vch_arg3  VARCHAR(128);"
+                                                  << "alter table cey_bt_paymode add column vch_arg4  VARCHAR(128);"
+                                                  , tr("2.2")// 支付方式里新增微信支付， 支付宝支付， 百度糯米， 大众，美团")
+                                                  ));
+    //2.3点菜宝新增字段--》vch_wirelessno ，系统加最近的无线点采机的流水号
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << "alter table cey_u_orderdish add column vch_wirelessno  VARCHAR(20);"//Y0042 00001 0400: 00:33
+                                                  << "replace into cey_sys_parameter(vch_parameter, vch_value, vch_explain) values('last_wirelessno', 0, '无线点菜最后流水');"
+                                                  , tr("2.3")//点菜宝新增字段")
+                                                  ));
+    //2.4新增支付方式10(充值卡(云))
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << QString("replace into cey_bt_paymode(ch_paymodeno, vch_paymodename, ch_IDflag, ch_faceflag, ch_changeflag, ch_incomeflag, ch_key) values('10','%1','N', 'N','N', 'Y', '');")
+                                                  .arg(tr("充值卡(云)"))
+                                                  , tr("2.4")//新增支付方式10(充值卡(云))")
+                                                  ));
+    //2.5新增支付方式11(会员挂账)
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << QString("replace into cey_bt_paymode(ch_paymodeno, vch_paymodename, ch_IDflag, ch_faceflag, ch_changeflag, ch_incomeflag, ch_key) values('11','%1','N', 'N','N', 'Y', '');")
+                                                  .arg(tr("会员挂账"))
+                                                  , tr("2.5")//新增支付方式11(会员挂账)")
+                                                  ));
+    //2.6软件对支付方式进行分类：N一般付款；S特殊处理；T团购
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << "update cey_bt_paymode set vch_arg4 = 'N' where ch_paymodeno in ('00', '01', '02', '03', '04', '05', '06', '10');"
+                                                  << "update cey_bt_paymode set vch_arg4 = 'S' where ch_paymodeno in ('11', 'XX', 'YY', 'ZZ');"
+                                                  << "update cey_bt_paymode set ch_incomeflag = 'N' where ch_paymodeno = '11' ;"
+                                                  << "update cey_bt_paymode set vch_arg2 = 'http://login.nuomi.com/account/login',vch_arg4 = 'T' where ch_paymodeno = '07';"
+                                                  << "update cey_bt_paymode set vch_arg2 = 'http://www.dianping.com/login',vch_arg4 = 'T' where ch_paymodeno = '08';"
+                                                  << "update cey_bt_paymode set vch_arg2 = 'http://e.meituan.com/account/login',vch_arg4 = 'T' where ch_paymodeno = '09';"
+
+                                                  , tr("2.6")//软件对支付方式进行分类：N一般付款；S特殊处理；T团购")
+                                                  ));
+    //2.7厨打表属性名更新、后台票尾被高倍宽追加字段
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << "alter table cey_bt_kitchen_print change column vch_printport vch_printtype VARCHAR(32);"
+                                                  << "alter table cey_bt_kitchen_print add column vch_instype  VARCHAR(32);"
+
+                                                  , tr("2.7")//厨打表属性名更新、后台票尾被高倍宽追加字段")
+                                                  ));
+    //2.8 升级cey_u_orderdish vch_print_memo 设置varchar -》 TinyBlob，方便插入图片，二进制流等数据
+    //TinyBlob 最大 255
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << "alter table cey_sys_parameter change column vch_value vch_value VARCHAR(511);"
+                                                  , tr("2.8")//厨打表属性名更新、后台票尾被高倍宽追加字段")
+                                                  ));
+    //2.9
+
+    //    vch_plan_id, vch_plan_name,
+    //    int_suit_type, int_dish_type, int_print_count,
+    //    int_tail_block, int_print_id_second, vch_plan_title, vch_plan_tail,int_print_id
+
+    //    ch_dishno,
+    //            ch_print_flag, int_print_id1, int_print_id2, int_print_id3，
+    //                ch_out_flag, int_out_id1, int_out_id2, int_out_id3
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  << "alter table cey_u_checkout_master add column vch_service_desc  VARCHAR(32);"///添加服务费描述
+                                                  << "alter table cey_u_orderdish_log add column num_back_cur  decimal(12,2);"///添加退菜实时数量
+                                                  << "alter table cey_bt_kitchen_print add column vch_printother  VARCHAR(32);"///添加cey_bt_kitchen_print——vch_printother
+                                                  << "alter table cey_bt_kitchen_print add column ch_areaNo  VARCHAR(2);"///添加cey_bt_kitchen_print——ch_areaNo
+                                                  << "alter table cey_bt_kitchen_print change column vch_printother int_paperwidth  int(4);"///添加vch_printother——int_paperwidth
+                                                  << "alter table cey_u_orderdish add column vch_print_desc  VARCHAR(60);"///cey_u_orderdish 更新厨打出品说明字段 vch_print_desc
+                                                  << "alter table cey_u_orderdish change column vch_print_desc vch_wirelessno_desc  VARCHAR(60);"///添加vch_printother——int_paperwidth
+                                                  << "delete from cey_bt_paymode where ch_paymodeno = 'XX';"///取消免单
+
+                                                  <<"CREATE TABLE IF NOT EXISTS cey_bt_kitchen_plan("///厨打方案
+                                                  "vch_plan_id varchar(2) primary key NOT NULL,"
+                                                  "vch_plan_name varchar(32),"
+                                                  "int_print_id int(2),"
+                                                  "int_print_id_second int(2),"
+                                                  "int_suit_type int(2),"
+                                                  "int_dish_type int(2),"
+                                                  "int_print_count int(2),"
+                                                  "int_tail_block int(2),"
+                                                  "vch_plan_title varchar(100),"
+                                                  "vch_plan_tail varchar(100)"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+
+                                                  << "alter table cey_bt_dish add column ch_kitchen_print_flag varchar(1);"///添加cey_bt_dish——ch_kitchen_print_flag
+                                                  << "alter table cey_bt_dish add column vch_kitchen_print_id1 varchar(2);"///添加cey_bt_dish——vch_kitchen_print_id1
+                                                  << "alter table cey_bt_dish add column vch_kitchen_print_id2 varchar(2);"///添加cey_bt_dish——vch_kitchen_print_id2
+                                                  << "alter table cey_bt_dish add column vch_kitchen_print_id3 varchar(2);"///添加cey_bt_dish——vch_kitchen_print_id3
+
+                                                  << "alter table cey_bt_dish add column ch_kitchen_out_flag varchar(1);"///添加cey_bt_dish——ch_kitchen_out_flag
+                                                  << "alter table cey_bt_dish add column vch_kitchen_out_id1 varchar(2);"///添加cey_bt_dish——vch_kitchen_out_id1
+                                                  << "alter table cey_bt_dish add column vch_kitchen_out_id2 varchar(2);"///添加cey_bt_dish——vch_kitchen_out_id2
+                                                  << "alter table cey_bt_dish add column vch_kitchen_out_id3 varchar(2);"///添加cey_bt_dish——vch_kitchen_out_id3
+
+                                                  //cey_u_orderdish_log
+                                                  << "alter table cey_u_orderdish add column vch_plan_k3o3_id  VARCHAR(12);"///厨打方案：112233--5566
+                                                  << "alter table cey_u_orderdish add column vch_plan_k3o3_state  VARCHAR(6);"///厨打状态 111-11
+
+                                                  << "alter table cey_u_hungbill add column vch_plan_k3o3_id  VARCHAR(12);"///厨打方案：112233--5566
+                                                  << "alter table cey_u_hungbill add column vch_plan_k3o3_state  VARCHAR(6);"///厨打状态 111-11
+
+                                                  << "alter table cey_u_orderdish_log add column vch_plan_k3o3_state  VARCHAR(6);"///厨打状态 111-11
+                                                  //                                                  << "alter table cey_u_orderdish drop ch_printflag; "
+                                                  //                                                  << "alter table cey_u_orderdish drop ch_outflag; "
+                                                  << "alter table cey_u_orderdish drop vch_wirelessno_desc; "
+                                                  << "alter table cey_u_orderdish drop vch_wirelessno; "
+                                                  << "alter table cey_u_orderdish add column vch_plan_desc  VARCHAR(1023);"///厨打状态说明 111-11
+                                                  << "update cey_u_table set ch_order_state= 4 where ifnull(ch_payno, '') <> '' "///若已有餐桌消费信息则，将ch_order_state置为付款结束(4)
+
+                                                  , "2.9 "//菜品大类权限")
+                                                  ));
+
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+
+                                                  << "drop table `1`"
+                                                  << "alter table cey_bt_kitchen_plan add column int_head_block  int(2);"
+                                                  << "delete from cey_bt_class"
+                                                  << "alter table cey_bt_kitchen_plan add column ch_check_state  varchar(1);"
+
+                                                  << "alter table cey_bt_dish add column ch_groupno  VARCHAR(7)"
+
+                                                  << "alter table cey_bt_paymode add column vch_arg5  VARCHAR(128)"
+                                                  << "alter table cey_bt_paymode add column vch_arg6  VARCHAR(128)"
+                                                  << "alter table cey_bt_paymode add column vch_arg7  VARCHAR(128)"
+
+                                                  << "alter table cey_bt_kitchen_plan add column ch_print_id_second_use  VARCHAR(1)"
+
+                                                  <<"alter table cey_u_hungbill change column vch_print_memo vch_print_memo VARCHAR(1023)"
+                                                  <<"alter table cey_u_orderdish change column vch_print_memo vch_print_memo VARCHAR(1023)"
+                                                  <<"alter table cybr_book_detail change column vch_print_memo vch_print_memo VARCHAR(1023)"
+                                                  <<"alter table cey_u_orderdish_log add column  vch_print_memo VARCHAR(1023)"
+                                                  <<"alter table cey_u_orderdish_log add column  num_price_add decimal(12,2)"
+
+                                                  //更新本地数据x14 ch_yun_already_keep
+                                                  <<"alter table cey_bt_dish add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_dish_subtype add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_dish_type add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_dish_suit add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_suit_change add column ch_yun_already_keep  VARCHAR(1)"
+
+                                                  <<"alter table cey_bt_unit add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_table add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_table_type add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_table_area add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_cp_dish add column ch_yun_already_keep  VARCHAR(1)"
+
+                                                  <<"alter table cey_bt_cp_memo add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_cp_type add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_dish_warn add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_bt_paymode add column ch_yun_already_keep  VARCHAR(1)"
+
+                                                  //会员x5 ch_yun_already_keep
+                                                  <<"alter table t_m_member_type  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table t_m_member add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table t_m_gift add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table t_m_curamount add column ch_yun_already_keep  VARCHAR(1)"
+
+                                                  //cey_web_table_version
+                                                  << " CREATE TABLE IF NOT EXISTS cey_web_table_version("
+                                                     " vch_sqltablename varchar(30) primary key NOT NULL,"
+                                                     " vch_sqltablename_key_name  varchar(30) NOT NULL,"
+
+                                                     " vch_sqltablename_yun varchar(30) NOT NULL,"
+                                                     " vch_sqltablename_yun_key_name varchar(30) NOT NULL,"
+                                                     " vch_sqltablename_yun_version varchar(30) NOT NULL,"
+                                                     " int_version int(10) NOT NULL"
+                                                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+
+
+                                                  //基础资料x14
+                                                  << "replace into cey_web_table_version values( 'cey_bt_cp_dish', 'ch_dishno,ch_no', 'dishPracticeList', 'dpChDishNo,dpChNo', 'dishPracticeVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_cp_dish'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_cp_memo', 'ch_no', 'dishPracticeMemoList', 'chNo', 'dishPracticeMemoVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_cp_memo'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_cp_type', 'ch_typeno', 'dishPracticeTypeList', 'dptChTypeNo', 'dishPracticeTypeVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_cp_type'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_dish', 'ch_dishno', 'dishInfoList', 'diChDishNo', 'dishInfoVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_dish'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_dish_subtype', 'ch_sub_typeno', 'dishSubTypeList', 'dstChSubTypeNo', 'dishSubTypeVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_dish_subtype'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_dish_suit', 'int_flowid', 'dishSuitList', 'dsIntFlowId', 'dishSuitVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_dish_suit'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_dish_type', 'ch_dish_typeno', 'dishTypeList', 'dtChDishTypeNo', 'dishTypeVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_dish_type'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_dish_warn', 'int_flowid', 'dishGuQingList', 'dgqIntFlowId', 'dishGuQingVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_dish_warn'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_paymode', 'ch_paymodeno', 'payModeList', 'pmChPayModeNo', 'payModeVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_paymode'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_suit_change', 'int_flowid,ch_dishno', 'dishSuitChangeList', 'dscIntFlowId,dscChDishNo', 'dishSuitChangeVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_suit_change'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_table', 'ch_tableno', 'dishTableList', 'dtChTableNo', 'dishTableVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_table'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_table_area', 'ch_areano', 'dishTableAreaList', 'dtaChAreaNo', 'dishTableAreaVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_table_area'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_table_type', 'ch_typeno', 'dishTableTypeList', 'dttChTyperNo', 'dishTableTypeVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_table_type'),0));"
+                                                  << "replace into cey_web_table_version values('cey_bt_unit', 'ch_unitno', 'dishUnitList', 'duChUnitNo', 'dishUnitVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'cey_bt_unit'),0));"
+
+                                                  //会员 x4
+                                                  << "replace into cey_web_table_version values('t_m_curamount', 'vch_memberno', 'memberCuramountList', 'vchMemberno', 'memberCuramountVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 't_m_curamount'),0));"
+                                                  << "replace into cey_web_table_version values('t_m_gift', 'int_flowID', 'memberGiftList', 'intFlowid', 'memberGiftVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 't_m_gift'),0));"
+                                                  << "replace into cey_web_table_version values('t_m_member', 'vch_memberno', 'memberInfoList', 'miVchMemberNo', 'memberInfoVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 't_m_member'),0));"
+                                                  << "replace into cey_web_table_version values('t_m_member_type', 'ch_typeno', 'memberTypeList', 'chTypeno', 'memberTypeVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 't_m_member_type'),0));"
+
+                                                  ///单独设置会员
+                                                  <<"alter table t_m_parameter add column ch_yun_already_keep  VARCHAR(1)"
+                                                  ///流水单独设置
+                                                  <<"alter table cey_u_checkout_detail  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_u_checkout_master  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_u_orderdish  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_u_orderdish_log  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_u_service_low  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table t_m_deposit  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table t_m_point  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table t_m_pay  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_u_togo  add column ch_yun_already_keep  VARCHAR(1)"
+                                                  <<"alter table cey_u_table  add column ch_yun_already_keep  VARCHAR(1)"
+
+                                                  //中餐下点菜宝流水号
+                                                  <<"alter table cey_u_orderdish add column vch_wx_serial  VARCHAR(32)"
+                                                  <<"alter table t_m_hang_balance change column ch_balanceno ch_balanceno VARCHAR(15)"
+                                                  <<"alter table t_m_pay change column ch_balanceno ch_balanceno VARCHAR(15)"
+                                                  <<"alter table t_m_pay change column ch_balanceno ch_balanceno VARCHAR(15)"
+                                                  , "3.0"
+                                                  ));
+
+
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList() <<
+                                                  "    DROP procedure IF EXISTS get_time;\n"
+                                                  "CREATE procedure get_time( str1 CHAR(25), str2 CHAR(25),temp1 CHAR(25),temp2 CHAR(25)) \n"
+
+                                                  "BEGIN \n"
+                                                  "declare beginTime datetime;\n"
+                                                  "declare endTime datetime;\n"
+
+                                                  "IF (select count(dt_begin) from cey_u_day_sumup where dt_date =str1 limit 1)>0 THEN\n"
+                                                  "set beginTime = (select dt_begin from cey_u_day_sumup where dt_date =str1 limit 1);\n"
+                                                  "ELSE \n"
+                                                  "IF (select count(1) from cey_u_day_sumup where dt_date <= str1 )>0 THEN\n"
+                                                  "set beginTime = (select  IFNULL( MAX(dt_end),temp1) from cey_u_day_sumup where dt_date <= str1);\n"
+                                                  "ELSE \n"
+                                                  "set beginTime = (select  IFNULL( MIN(dt_begin),temp1) from cey_u_day_sumup where dt_date >= str1); \n"
+                                                  "END IF; \n"
+                                                  "END IF;\n"
+
+                                                  "IF (select count(dt_end) from cey_u_day_sumup where dt_date =str2 limit 1)>0 THEN\n"
+                                                  "set endTime = (select dt_end from cey_u_day_sumup where dt_date =str2 limit 1);\n"
+                                                  "ELSE \n"
+                                                  "IF (select count( 1 ) from cey_u_day_sumup where dt_date <= str2)>0 THEN\n"
+                                                  "	set endTime = (select IFNULL(MAX(dt_end),temp2) from cey_u_day_sumup where dt_date <= str2 ); \n"
+                                                  "ELSE \n"
+                                                  "set endTime = (select IFNULL(MIN(dt_begin),temp2) from cey_u_day_sumup where dt_date >= str2); \n"
+                                                  "END IF;\n""END IF; \n"
+
+                                                  " SELECT beginTime,endTime;\n"
+
+                                                  "END\n"
+                                                  <<
+                                                  "    DROP procedure IF EXISTS get_time2;\n"
+                                                  "CREATE procedure get_time2(str1 VARCHAR(25),str2 VARCHAR(25)) \n"
+
+                                                  "BEGIN\n"
+                                                  "declare beginTime datetime ;\n"
+                                                  "declare endTime datetime;\n"
+                                                  "set beginTime=(Select dt_begin from cey_u_day_sumup where dt_date =str1);\n"
+                                                  "set endTime=(Select dt_end from cey_u_day_sumup where dt_date =str2);\n"
+                                                  "SELECT beginTime,endTime;\n" "END\n"
+                                                  <<
+                                                  "    DROP procedure IF EXISTS get_time3;\n"
+                                                  "CREATE procedure get_time3(str1 VARCHAR(25),str2 VARCHAR(25)) \n"
+
+                                                  "BEGIN\n"
+                                                  "declare beginTime datetime ;\n"
+                                                  "declare endTime datetime;\n"
+                                                  "set beginTime=(Select dt_begin from cey_u_day_sumup where dt_date =str1);\n"
+                                                  "set endTime=(Select dt_end from cey_u_day_sumup where dt_date =str2);\n"
+                                                  "SELECT beginTime,endTime;\n" "END\n"
+                                                  <<
+                                                  "    DROP procedure IF EXISTS pr_m_deposit_point_detail;\n"
+                                                  "CREATE procedure pr_m_deposit_point_detail(sdate VARCHAR(12),edate VARCHAR(12),memberno VARCHAR(12)) \n"
+
+                                                  "BEGIN\n"
+
+                                                  "DROP TABLE IF EXISTS temp;\n"
+
+                                                  "CREATE TEMPORARY TABLE temp(memberno varchar(20) not null,membername varchar(40) null,typeno varchar(30) null,\n"
+                                                  "smoney decimal(18,2) default 0,spoint decimal(18,2) default 0,mpay decimal(18,2) default 0,\n"
+                                                  "mdeposit	decimal(18,2) default 0,	mpoint 	  decimal(18,2) default 0, emoney decimal(18,2) default 0,\n"
+                                                  "epoint decimal(18,2) default 0,dpdate datetime null,\n"
+                                                  "memo varchar(100) null);\n"
+
+                                                  "INSERT INTO temp\n"
+                                                  "SELECT A.vch_memberno memberno,B.vch_member vch_member,(select vch_typename from t_m_member_type where ch_typeno = B.ch_typeno limit 0,1) typeno,\n"
+                                                  "IFNULL((select sum(IFNULL(num_deposit,0)) from t_m_deposit where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) -\n"
+                                                  " IFNULL((select sum(IFNULL(num_pay,0)) from t_m_pay where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) + \n"
+                                                  "IFNULL(num_limit,0) smoney,\n"
+                                                  " IFNULL((select sum(IFNULL(num_point,0)) from t_m_point where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) spoint,\n"
+                                                  "  0 mpay,	IFNULL(num_deposit,0) mdeposit ,0 mpoint,\n"
+                                                  " IFNULL((select sum(IFNULL(num_deposit,0)) from t_m_deposit where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) -\n"
+                                                  "  IFNULL((select sum(IFNULL(num_pay,0)) from t_m_pay where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) + IFNULL(num_deposit,0) + IFNULL(num_limit,0) emoney,\n"
+                                                  " IFNULL((select sum(IFNULL(num_point,0)) from t_m_point where vch_memberno = A.vch_memberno and dt_operdate <= A.dt_operdate ),0) epoint,\n"
+                                                  " A.dt_operdate dpdate, case when A.ch_deposit_mode = '3' and ch_pay_mode = '5' then '系统付款返现' + IFNULL(A.vch_memo,'') else A.vch_memo end memo\n"
+                                                  " FROM t_m_deposit A, t_m_member B WHERE A.vch_memberno = B.vch_memberno AND LEFT(A.dt_operdate,10) >= sdate AND LEFT(A.dt_operdate,10) <= edate AND A.vch_memberno = memberno;\n"
+
+                                                  "INSERT INTO temp\n"
+                                                  "SELECT A.vch_memberno memberno,B.vch_member vch_member,(select vch_typename from t_m_member_type where ch_typeno = B.ch_typeno LIMIT 0,1) typeno, \n"
+                                                  "  IFNULL((select sum(IFNULL(num_deposit,0)) from t_m_deposit where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) -\n"
+                                                  " IFNULL((select sum(IFNULL(num_pay,0)) from t_m_pay where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) + \n"
+                                                  "IFNULL(num_limit,0)  smoney,\n"
+                                                  "  IFNULL((select sum(IFNULL(num_point,0)) from t_m_point where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) spoint,\n"
+                                                  "  0 mpay,	0 mdeposit ,IFNULL( num_point,0) mpoint,\n"
+                                                  "  IFNULL((select sum(ifnull(num_deposit,0)) from t_m_deposit where vch_memberno = A.vch_memberno and dt_operdate <= A.dt_operdate ),0) -\n"
+                                                  "IFNULL((select sum(ifnull(num_pay,0)) from t_m_pay where vch_memberno = A.vch_memberno and dt_operdate <= A.dt_operdate ),0) + IFNULL(num_limit,0) emoney,\n"
+                                                  "  IFNULL((select sum(ifnull(num_point,0)) from t_m_point where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) + IFNULL(num_point,0)  epoint,A.dt_operdate dpdate, case when A.ch_type = '3' then '消费系统积分' + IFNULL(A.vch_memo,'') else A.vch_memo end memo\n"
+                                                  " FROM t_m_point A, t_m_member B WHERE A.vch_memberno = B.vch_memberno AND IFNULL( A.num_point,0) <> 0	AND  LEFT(A.dt_operdate,10) >= sdate AND LEFT(A.dt_operdate,10) <= edate AND A.vch_memberno = memberno;\n"
+
+                                                  "INSERT INTO temp\n"
+                                                  "SELECT A.vch_memberno memberno,B.vch_member vch_member,(select vch_typename from t_m_member_type where ch_typeno = B.ch_typeno LIMIT 0,1) typeno, \n"
+                                                  "  IFNULL((select sum(IFNULL(num_deposit,0)) from t_m_deposit where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) -\n"
+                                                  "  IFNULL((select sum(IFNULL(num_pay,0)) from t_m_pay where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) + IFNULL(num_limit,0) smoney, \n"
+                                                  "   IFNULL((select sum(IFNULL(num_point,0)) from t_m_point where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) spoint,\n"
+                                                  "   IFNULL(num_pay,0) mpay,0 mdeposit ,0 mpoint,\n"
+                                                  "   IFNULL((select sum(IFNULL(num_deposit,0)) from t_m_deposit where vch_memberno = A.vch_memberno and dt_operdate <= A.dt_operdate ),0) -\n"
+                                                  " IFNULL((select sum(IFNULL(num_pay,0)) from t_m_pay where vch_memberno = A.vch_memberno and dt_operdate < A.dt_operdate ),0) - IFNULL(num_pay,0) + IFNULL(num_limit,0) emoney,\n"
+                                                  "  IFNULL((select sum(IFNULL( num_point,0)) from t_m_point where vch_memberno = A.vch_memberno and dt_operdate <= A.dt_operdate ),0) epoint,\n"
+                                                  " A.dt_operdate dpdate, '' memo\n"
+                                                  " FROM t_m_pay A, t_m_member B WHERE A.vch_memberno = B.vch_memberno AND LEFT(A.dt_operdate,10) >= sdate AND LEFT(A.dt_operdate,10) <= edate AND A.vch_memberno = memberno;\n"
+
+                                                  "SELECT * FROM temp ORDER BY dpdate;\n"
+
+                                                  "END\n"
+                                                  << "    DROP procedure IF EXISTS sys_set_permissions;\n"
+                                                     "CREATE procedure sys_set_permissions(id VARCHAR(1000),list VARCHAR(1000))\n"
+
+                                                     "BEGIN\n"
+                                                     "DECLARE ix int;\n"
+                                                     "DECLARE pos int;\n"
+                                                     " DECLARE str varchar(1000);\n"
+                                                     "SET pos = 1 ;\n"
+                                                     " SET ix = 1 ;\n"
+
+                                                     "delete from cey_sys_oper_purview where vch_operID = id ;\n"
+                                                     "WHILE ix > 0 do\n"
+
+                                                     "SET ix = LOCATE(',', list, pos); \n"
+                                                     "IF ix > 0 THEN\n"
+                                                     "SET str = SUBSTRING(list, pos, ix - pos);\n"
+                                                     "ELSE \n"
+                                                     "SET str = substring(list, pos, LENGTH(list));\n"
+                                                     "end if;\n"
+                                                     "insert into cey_sys_oper_purview values(id,str) ;\n"
+                                                     "SET pos = ix + 1 ;\n" "END WHILE;\n" "END\n"
+                                                  << " DROP procedure IF EXISTS sys_settings;\n"
+                                                     "CREATE procedure sys_settings(attribute VARCHAR(20000)) \n"
+
+                                                     "BEGIN\n"
+                                                     " DECLARE ix int;\n"
+                                                     "DECLARE pos int;\n"
+                                                     " DECLARE attributeLenght int;\n"
+                                                     "DECLARE str1 varchar(30);\n"
+                                                     " DECLARE str2 varchar(60);\n"
+                                                     " DECLARE str3 varchar(30);\n"
+                                                     "SET pos = 1 ;\n"
+                                                     " SET ix = 1 ;\n"
+                                                     " SET attributeLenght = LENGTH(attribute);\n"
+
+                                                     "loop_label:WHILE ix>0 do\n"
+
+                                                     "SET ix = LOCATE('&,&', attribute, pos);\n"
+                                                     "SET str1 = SUBSTRING(attribute, pos, ix - pos);\n"
+                                                     "SET pos = ix + 3 ;\n"
+
+                                                     "SET ix = LOCATE('&,&', attribute, pos); \n"
+                                                     "	SET str2 = SUBSTRING(attribute, pos, ix - pos);\n"
+                                                     " SET pos = ix + 3 ;\n"
+
+                                                     " SET ix = LOCATE('&,&', attribute, pos);\n"
+                                                     "IF ix > 0 THEN\n"
+                                                     "	SET str3 = SUBSTRING(attribute, pos, ix - pos);\n"
+                                                     "	ELSE\n"
+                                                     "	SET str3 = substring(attribute, pos, attributeLenght);\n"
+                                                     "END IF;\n"
+                                                     "SET pos = ix + 3;\n"
+
+                                                     "IF (Select count(*) from cey_sys_parameter where vch_parameter =str1)>0 THEN \n"
+                                                     "	update cey_sys_parameter set vch_value =str2 where vch_parameter =str1;\n"
+                                                     "	ELSE \n"
+                                                     "Insert Into cey_sys_parameter values ( str1 , str2, str3);\n"
+                                                     "END IF;\n"
+
+                                                     "SET ix = LOCATE('&,&', attribute, pos);\n"
+
+                                                     "END WHILE;\n"
+
+                                                     "END\n"
+
+                                                  << "drop trigger tr_android_cey_u_table_update;"
+                                                  << "drop trigger tr_android_cey_u_table_insert;"
+                                                  )
+                                              );
+    MySQL_sqlversion_data_content_list.append(MySQL_SQLVERSION_DATA(
+                                                  QStringList()
+                                                  ///脏数据
+                                                  << "delete from cey_bt_kitchen_print where vch_printip = '123';"
+                                                  ///小票默认厨打格式
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_ch_billno','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_ch_checkprintstate','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_ch_rowno','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_ch_serialno','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_ch_tableno','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_ch_tailtotal','0') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_dt_cur','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_dt_operdate','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_int_person','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_num_num','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_num_price','0') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_vch_dishname','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_vch_operid','1') "
+
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_lineEdit_ch_billno_scale','00') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_lineEdit_ch_serialno_scale','11') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_lineEdit_ch_tableno_scale','11') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_lineEdit_content_scale','01') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_lineEdit_dt_cur_scale','00') "
+
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_lineEdit_dt_operdate_scale','00') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_lineEdit_int_person_scale','00') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_lineEdit_vch_operid_scale','00') "
+
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_spinBox_num_num_row','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_spinBox_num_num_width','15') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_spinBox_num_price_row','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_spinBox_num_price_width','15') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_spinBox_vch_dishname_row','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_spinBox_vch_dishname_width','15') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_spinBox_vtimeout','1') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_title','0') "
+                                                  <<"insert into cey_sys_parameter(vch_parameter, vch_value) value('kt_checkBox_vch_plan_id','0') "
+
+                                                  ///基础资料
+                                                  <<"alter table cey_u_togo  add column vch_yun_sn  VARCHAR(15)"
+                                                  <<"alter table cey_u_orderdish_log  add column ch_payno  VARCHAR(15)"
+
+                                                  <<"update cey_bt_dish set ch_groupno = ch_dishno where ifnull(ch_groupno, '') = '' "
+                                                  <<"update del_cey_bt_dish set ch_groupno = ch_dishno where ifnull(ch_groupno, '') = '' "
+
+                                                  <<"alter table cey_bt_dish  add column num_item_warn decimal(12,2)  default 0"//打印机新烨打印机的蜂鸣
+                                                  <<"alter table del_cey_bt_dish  add column num_item_warn decimal(12,2)  default 0"//打印机新烨打印机的蜂鸣
+
+                                                  <<"alter table cey_bt_dish  add column ch_guqing_flag varchar(1) "//是否估清
+                                                  <<"alter table del_cey_bt_dish  add column ch_guqing_flag varchar(1) "//是否估清
+
+                                                  <<"alter table cey_bt_dish  add column num_guqing_num decimal(12,2)  default 0 "//估清数量
+                                                  <<"alter table del_cey_bt_dish  add column num_guqing_num decimal(12,2)  default 0"//估清剩余
+
+                                                  <<"alter table cey_bt_dish  add column ch_material_flag varchar(1) "//是否原料
+                                                  <<"alter table del_cey_bt_dish  add column ch_material_flag varchar(1)"//是否原料
+
+                                                  <<"alter table cey_bt_dish  add column ch_special_type varchar(1) default '0' "//策略1  ：0 1 2
+                                                  <<"alter table del_cey_bt_dish  add column ch_special_type varchar(1)"//策略1 ：0 1 2
+
+                                                  <<"alter table cey_bt_dish  add column ch_special_type2 varchar(1) default '0' "//策略2  ：0 1 2
+                                                  <<"alter table del_cey_bt_dish  add column ch_special_type2 varchar(1)"//策略2  ：0 1 2
+
+                                                  <<"alter table cey_bt_dish  add column ch_special_type3 varchar(1) default '0' "//策略3  ：0 1 2
+                                                  <<"alter table del_cey_bt_dish  add column ch_special_type3 varchar(1)"//策略3  ：0 1 2
+
+                                                  <<"alter table cey_bt_dish  add column ch_special_type4 varchar(1) default '0' "//策略4  ：0 1 2
+                                                  <<"alter table del_cey_bt_dish  add column ch_special_type4 varchar(1)"//策略4  ：0 1 2
+
+                                                  <<"alter table cey_bt_dish  add column num_special_price DECIMAL(12, 2)  default 0"//特价 1 2
+                                                  <<"alter table del_cey_bt_dish  add column num_special_price DECIMAL(12, 2)  default 0"//特价 1 2
+
+
+                                                  << "alter table cey_u_orderdish change column num_num num_num DECIMAL(12, 3)  default 0"
+                                                  << "alter table cey_u_orderdish change column num_back num_back DECIMAL(12, 3)  default 0"
+                                                  << "alter table cey_u_hungbill change column num_num num_num DECIMAL(12, 3)  default 0"
+                                                  << "alter table cey_u_hungbill change column num_back num_back DECIMAL(12, 3)  default 0"
+                                                  << "alter table cey_u_orderdish change column vch_plan_desc vch_plan_desc VARCHAR(1023)"
+
+                                                  ///微信支付宝，刷卡支付，调整
+                                                  <<"insert into cey_bt_paymode(ch_paymodeno, vch_paymodename, ch_IDflag, ch_faceflag, ch_changeflag, ch_incomeflag, ch_key, vch_arg4, vch_arg5) values('AA','移动支付','N', 'N','N', 'Y', '', 'S', 'Y' );"
+                                                  <<        "update cey_bt_paymode set vch_arg4 = 'N' where ch_paymodeno = '05';"
+                                                  <<           "update cey_bt_paymode set vch_arg4 = 'N' where ch_paymodeno = 'AA'; "
+                                                  <<          "update cey_bt_paymode set vch_arg4 = 'N' where ch_paymodeno = '11'; "
+                                                  <<          "update cey_bt_paymode set vch_arg4 = 'N' where ch_paymodeno = 'YY'; "
+                                                  <<           "update cey_bt_paymode set vch_arg4 = 'N' where ch_paymodeno = 'ZZ'; "
+
+                                                  ///cey_u_orderdish，加税率
+                                                  <<"alter table cey_u_orderdish  add column int_rate decimal(12,2)  default 0 "//流水太大时，升级会非常慢
+                                                  <<"alter table cey_u_hungbill  add column int_rate decimal(12,2)  default 0 "//流水太大时，升级会非常慢
+                                                  ///打印机加蜂鸣次数
+                                                  <<"alter table cey_bt_kitchen_print  add column int_xinye_beep_count int default 4"//打印机新烨打印机的蜂鸣
+                                                  ///原料配比表
+                                                  <<
+                                                  "CREATE TABLE IF NOT EXISTS material_bt_dish("
+                                                  "`int_flowID` int(11) NOT NULL AUTO_INCREMENT COMMENT '流水号',"
+                                                  "`ch_dishno` varchar(7) NOT NULL COMMENT '菜品编码',"
+                                                  "`ch_itemno` varchar(7) NOT NULL COMMENT '原料编码',"
+                                                  "`num_num` decimal(12,2) DEFAULT '0.00' COMMENT '原料数量',"
+                                                  "`ch_yun_already_keep` varchar(1) COMMENT '是否上传',"
+                                                  " PRIMARY KEY (`int_flowID`)"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+                                                  <<QString("create table del_%1 like %1; ").arg("material_bt_dish")
+                                                  ///原料配比流水表
+                                                  <<
+                                                  "CREATE TABLE IF NOT EXISTS material_u_orderdish("
+                                                  "`int_flowID`	int(11)  NOT NULL AUTO_INCREMENT COMMENT '流水号',"
+                                                  "`int_order_flowID`	int(11) NOT NULL COMMENT '主菜流水',"
+                                                  "`ch_dishno`	varchar(7) NOT NULL COMMENT '原料',"
+                                                  "`num_num`	decimal(12,3) default '0.00'  COMMENT '原料点菜数量',"
+                                                  "`num_back`	decimal(12,3) default '0.00'  COMMENT '原料退菜数量',"
+                                                  "`num_rate`	decimal(12,3) default '0.00'  COMMENT '原料主料比率2',"
+                                                  "`ch_yun_already_keep` varchar(1) COMMENT '是否上传',"
+                                                  " PRIMARY KEY (`int_flowID`)"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+
+                                                  ///原料销售更新库存的触发器-update
+                                                  <<
+                                                  "    DROP TRIGGER IF EXISTS tr_material_u_orderdish_update;\n"
+                                                  <<
+                                                  "    CREATE TRIGGER tr_material_u_orderdish_update AFTER UPDATE ON material_u_orderdish FOR EACH ROW \n"
+                                                  "      BEGIN"
+                                                  "       DECLARE m_done int default 0;"
+                                                  "     DECLARE flowId integer;"
+                                                  "     DECLARE dishno varchar(7);"
+                                                  "     DECLARE numnum numeric(10,2);"
+                                                  "  DECLARE materialno varchar(7);"
+                                                  "    DECLARE intflowId integer;"
+                                                  "       DECLARE initqty numeric(16,4);"
+                                                  "      DECLARE initprice numeric(16,4);"
+                                                  "     DECLARE remainqty numeric(16,4);"
+                                                  "     DECLARE remainprice numeric(16,4);"
+                                                  "       DECLARE itemflag char(1);"
+
+
+                                                  "    IF(NEW.int_flowId = OLD.int_flowId and NEW.num_back > OLD.num_back) THEN"
+
+                                                  "        set flowId = NEW.int_flowId;"
+                                                  "      set dishno = NEW.ch_dishno;"
+                                                  "      set numnum = NEW.num_back - OLD.num_back;"
+
+                                                  "     set itemflag = 'N';"
+                                                  "        set itemflag = (select ifnull(item_flag,'N') from cey_bt_dish where ch_dishno = dishno);"
+                                                  "         set materialno = dishno;"
+
+                                                  "        IF (materialno<>'' and itemflag = 'Y')  THEN"
+
+                                                  "    set intflowId = (select ifnull(max(int_flowId),0) from cey_st_material_flow where ch_materialno = materialno);"
+
+                                                  "       IF (intflowId = 0) THEN"
+                                                  "             set initqty = 0;"
+                                                  "    ELSE"
+                                                  "         set initqty = (select remain_qty from cey_st_material_flow where int_flowId = intflowId);"
+                                                  "      END IF;"
+
+                                                  "        IF (intflowId = 0) THEN"
+                                                  "          set initprice = 0;"
+                                                  "    ELSE"
+                                                  "      set initprice = (select remain_price from cey_st_material_flow where int_flowId = intflowId);"
+                                                  "       END IF;"
+
+                                                  "       set remainqty = initqty + numnum ;"
+
+                                                  "        IF (remainqty = 0)  THEN"
+                                                  "       set remainprice = 0;"
+                                                  "      ELSE"
+                                                  "       set remainprice = initprice;"
+                                                  "        END IF;"
+                                                  ////////////////////////////////////////////////////////////////////////////////////////原料
+
+                                                  "           insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,"
+                                                  "                     num_num, sheet_price, cost_price, remain_qty, remain_price, ch_sheetno )"
+                                                  "          values (materialno,now(), 'YL', 1,"
+                                                  "                  numnum, 0, remainprice, remainqty, remainprice, left(flowId,20));"
+
+                                                  "     IF exists (select 1 from cey_st_material_num where ch_materialno = materialno) THEN"
+                                                  "       update cey_st_material_num set num_num = remainqty, cost_price = remainprice"
+                                                  "      where ch_materialno = materialno;"
+                                                  "          ELSE"
+                                                  "           insert into cey_st_material_num (ch_materialno, num_num, cost_price)"
+                                                  "              values (materialno, remainqty, remainprice);"
+                                                  "      END IF;"
+
+                                                  "     END IF;"
+
+                                                  "          END IF;"
+
+                                                  "   END"
+
+
+                                                  ///原料销售更新库存的触发器-insert
+                                                  <<
+                                                  "    DROP TRIGGER IF EXISTS tr_material_u_orderdish_insert;\n"
+                                                  <<
+
+                                                  "    CREATE TRIGGER tr_material_u_orderdish_insert AFTER INSERT ON material_u_orderdish FOR EACH ROW \n"
+
+                                                  "       BEGIN"
+
+                                                  "        DECLARE flowId integer;"
+                                                  "       DECLARE dishno varchar(7);"
+                                                  "      DECLARE numnum numeric(10,2);"
+                                                  "      DECLARE materialno varchar(7);"
+                                                  "      DECLARE intflowId integer;"
+                                                  "      DECLARE initqty numeric(16,4);"
+                                                  "       DECLARE initprice numeric(16,4);"
+                                                  "     DECLARE remainqty numeric(16,4);"
+                                                  "    DECLARE remainprice numeric(16,4);"
+                                                  "        DECLARE itemflag char(1);"
+
+                                                  "       set flowId = NEW.int_flowId;"
+                                                  "      set dishno = NEW.ch_dishno;"
+                                                  "      set numnum = NEW.num_num - NEW.num_back;"
+
+                                                  "        set itemflag = 'N';"
+                                                  "        set itemflag = (select ifnull(item_flag,'N') from cey_bt_dish where ch_dishno = dishno);"
+
+                                                  "       set materialno = dishno;"
+
+                                                  "        IF (materialno<>'' and itemflag = 'Y') THEN"
+
+                                                  "      set intflowId = (select ifnull(max(int_flowId),0) from cey_st_material_flow where ch_materialno = materialno);"
+
+                                                  "       IF (intflowId = 0) THEN"
+                                                  "         set initqty = 0;"
+                                                  "      ELSE"
+                                                  "          set initqty = (select remain_qty from cey_st_material_flow where int_flowId = intflowId);"
+                                                  "    END IF;"
+
+                                                  "      IF (intflowId = 0) THEN"
+                                                  "      set initprice = 0;"
+                                                  "       ELSE"
+                                                  "        set initprice = (select remain_price from cey_st_material_flow where int_flowId = intflowId);"
+                                                  "       END IF;"
+
+                                                  "        set remainqty  = initqty - numnum ;"
+
+                                                  "     IF (remainqty = 0) THEN"
+                                                  "         set remainprice = 0;"
+                                                  "     ELSE"
+                                                  "          set remainprice = initprice;"
+                                                  "       END IF;"
+
+                                                  ////////////////////////////////////////////////////////////////////////////////////////原料
+                                                  "           insert cey_st_material_flow (ch_materialno, dt_operdate, sheettype, int_flag,"
+                                                  "              num_num, sheet_price, cost_price, remain_qty, remain_price, ch_sheetno )"
+                                                  "        values (materialno,now(), 'YL', case when numnum > 0 then -1 else 1 end,"
+                                                  "               case when numnum < 0 then -numnum else numnum end, 0, remainprice, remainqty, remainprice, LEFT(flowId,20));"
+
+
+                                                  "      IF exists (select 1 from cey_st_material_num where ch_materialno = materialno) THEN"
+                                                  "            update cey_st_material_num set num_num = remainqty, cost_price = remainprice"
+                                                  "          where ch_materialno = materialno;"
+                                                  "       ELSE"
+                                                  "       insert into cey_st_material_num (ch_materialno, num_num, cost_price)"
+                                                  "      values (materialno, remainqty, remainprice);"
+                                                  "      END IF;"
+
+                                                  "       END IF;"
+
+                                                  "       END"
+
+
+                                                  ///采购申请表
+                                                  <<
+                                                  "CREATE TABLE `material_purchase_apply` ("
+                                                  "`BILL_NO` varchar(64) NOT NULL COMMENT '单据编号',"
+                                                  "`APPLY_PEOPLE` varchar(32) DEFAULT NULL COMMENT '申请人',"
+                                                  "`APPLY_TIME` datetime COMMENT '申请时间',"
+                                                  "`CH_STATE` varchar(1) DEFAULT NULL COMMENT '审核状态',"
+                                                  "`REMARK` varchar(256) DEFAULT NULL COMMENT '备注',"
+                                                  "`DATE` datetime COMMENT '表单时间',"
+                                                  "`TITLE` varchar(255) DEFAULT NULL,"
+                                                  "PRIMARY KEY (`BILL_NO`)"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='采购申请表';"
+
+
+                                                  ///原料采购申请明细
+                                                  <<
+                                                  "CREATE TABLE `material_purchase_apply_detail` ("
+                                                  "`int_flowID` int(11) NOT NULL AUTO_INCREMENT,"
+                                                  "`BILL_NO` varchar(64) NOT NULL COMMENT '单据编号',"
+                                                  "`MATERIAL_CODE` varchar(32) DEFAULT NULL COMMENT '原料编码',"
+                                                  "`MATERIAL_NAME` varchar(32) DEFAULT NULL COMMENT '原料名称',"
+                                                  "`FORMAT` varchar(64) DEFAULT NULL COMMENT '规格',"
+                                                  "`UNIT_CODE` varchar(16) DEFAULT NULL COMMENT '入库单位',"
+                                                  "`UNIT_NAME` varchar(32) DEFAULT NULL COMMENT '单位名称',"
+                                                  "`APPLY_NUM` decimal(16,2) DEFAULT NULL COMMENT '申请数量',"
+                                                  "`DATE` datetime,"
+                                                  "PRIMARY KEY (`int_flowID`)"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='原料采购申请明细';"
+
+
+                                                  ///原料采购入库单
+                                                  <<
+                                                  "CREATE TABLE `material_purchase_in_storage` ("
+                                                  "`BILL_NO` varchar(64) NOT NULL COMMENT '编码',"
+                                                  "`ORG_CODE` varchar(64) DEFAULT NULL COMMENT '入库总店',"
+                                                  "`ORG_NAME` varchar(64) DEFAULT NULL COMMENT '入库总店',"
+                                                  "`PEOPLE` varchar(32) DEFAULT NULL COMMENT '入库人',"
+                                                  "`REMARK` varchar(128) DEFAULT NULL COMMENT '备注',"
+                                                  "`CH_STATE` varchar(1) DEFAULT NULL COMMENT '入库状态',"
+                                                  "`DATE` datetime,"
+                                                  "`TITLE` varchar(255) DEFAULT NULL,"
+                                                  "PRIMARY KEY (`BILL_NO`)"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='原料采购入库单';"
+
+
+                                                  ///原料采购入库单明细
+                                                  <<
+                                                  "CREATE TABLE `material_purchase_in_storage_detail` ("
+                                                  "`int_flowID` int(11) NOT NULL AUTO_INCREMENT,"
+                                                  "`BILL_NO` varchar(64) NOT NULL COMMENT '单据编号',"
+
+                                                  "`MATERIAL_CODE` varchar(32) DEFAULT NULL COMMENT '原料编码',"
+                                                  "`MATERIAL_NAME` varchar(32) DEFAULT NULL COMMENT '原料名称',"
+                                                  "`FORMAT` varchar(64) DEFAULT NULL COMMENT '规格',"
+                                                  "`UNIT_CODE` varchar(16) DEFAULT NULL COMMENT '入库单位',"
+                                                  "`UNIT_NAME` varchar(32) DEFAULT NULL COMMENT '单位名称',"
+
+                                                  "`APPLY_NUM` decimal(16,2) DEFAULT NULL COMMENT '入库数量',"
+                                                  "`APPLY_PRICE` decimal(16,2) DEFAULT NULL COMMENT '入库价格',"
+                                                  "`DATE` datetime,"
+                                                  "PRIMARY KEY (`int_flowID`)"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='原料采购入库单明细';"
+
+
+                                                  ///报损申请表
+                                                  <<
+                                                  "CREATE TABLE `material_loss_apply` ("
+                                                  "`BILL_NO` varchar(64) NOT NULL COMMENT '单据编号',"
+                                                  "`ORG_CODE` varchar(64) DEFAULT NULL COMMENT '受理总店',"
+                                                  "`ORG_NAME` varchar(64) DEFAULT NULL,"
+                                                  "`PEOPLE` varchar(32) DEFAULT NULL COMMENT '审核人',"
+                                                  "`REMARK` varchar(256) DEFAULT NULL COMMENT '备注',"
+                                                  "`CH_STATE` varchar(1) DEFAULT NULL COMMENT '审核状态',"
+                                                  "`DATE` datetime COMMENT '表单时间',"
+                                                  "`TITLE` varchar(255) DEFAULT NULL,"
+                                                  "PRIMARY KEY (`BILL_NO`)"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='报损申请表';"
+
+
+                                                  ///报损申请明细
+                                                  <<
+                                                  "CREATE TABLE `material_loss_apply_detail` ("
+                                                  "`int_flowID` int(11) NOT NULL AUTO_INCREMENT,"
+                                                  "`BILL_NO` varchar(64) NOT NULL COMMENT '单据编号',"
+
+                                                  "`MATERIAL_CODE` varchar(32) DEFAULT NULL COMMENT '原料编码',"
+                                                  "`MATERIAL_NAME` varchar(32) DEFAULT NULL COMMENT '原料名称',"
+                                                  "`FORMAT` varchar(64) DEFAULT NULL COMMENT '规格',"
+                                                  "`UNIT_CODE` varchar(16) DEFAULT NULL COMMENT '入库单位',"
+                                                  "`UNIT_NAME` varchar(32) DEFAULT NULL COMMENT '单位名称',"
+
+                                                  "`APPLY_NUM` decimal(16,2) DEFAULT NULL COMMENT '出库',"
+                                                  "`APPLY_PRICE` decimal(16,2) DEFAULT NULL COMMENT '入库价格',"
+                                                  "`DATE` datetime,"
+                                                  "PRIMARY KEY (`int_flowID`)"
+                                                  ") ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='报损申请明细';"
+
+                                                  ///更新云同步原料部分
+                                                  <<"replace into cey_web_table_version values( 'material_bt_dish', 'int_flowID', 'dishItemList', 'intFlowID', 'dishItemVersion',ifnull((select t.int_version from cey_web_table_version t where t.vch_sqltablename = 'material_bt_dish'),0) )"
+                                                  ///库存添加【是否上传字段】
+                                                  <<"alter table cey_st_material_num add column ch_yun_already_keep  VARCHAR(1)"
+                                                  )
+                                              );
+
+    CommonHeader::com_ini_filepath=lds::sysconf->fileName();
+    CommonHeader::com_root_dirpath= lds::fastfd_localdata();
+    Printer_POS::com_upsiseffect = lds::sysconf->value("system_setting/upsiseffect", false).toBool();
+}
+
+void public_sql::PUBLIC_SQL_INIT_DEL()
+{
+}
+
+bool public_sql::fastfd_init_UNZIP()
+{
+    //解压对应的菜品包
+    bool retflag=true;
+#ifdef Q_OS_UNIX
+    retflag = false;
+    if(QFile("userdata/settings/fastfd_localdata.zip").exists()){
+        QProcess myProcess;
+        myProcess.start(QString("rm -rf %1").arg(lds::fastfd_localdata()));
+        if(myProcess.waitForFinished()){
+            myProcess.start("unzip userdata/settings/fastfd_localdata.zip -d /userdata");
+            if(myProcess.waitForFinished()){
+                public_sql::MySQL_info=public_sql::err_path_arg.arg(tr("成功")).arg("unzip  fastfd_localdata");
+                retflag=true;
+                goto end;
+            }
+        }
+        public_sql::MySQL_info=public_sql::err_path_arg.arg(tr("失败")).arg(myProcess.errorString());
+    } else {
+        public_sql::MySQL_info=public_sql::err_path_arg.arg(tr("失败")).arg("not find  fastfd_localdata.zip");
+    }
+    //! 解压对应的菜品包
+#endif
+end:
+    return retflag;
+}
+
+void public_sql::MySQL_PARAM_INIT()
+{
+    islocal=lds::sysconf->value("public_sql/islocal", false).toBool();
+    localdbHostName=lds::sysconf->value("public_sql/localdbHostName", "127.0.0.1").toString();
+    localdbDatabaseName=lds::sysconf->value("public_sql/localdbDatabaseName","hddpos").toString();
+    localdbUserName=lds::sysconf->value("public_sql/localdbUserName","root").toString();
+#ifdef QT_DEBUG
+    localdbPassword=lds::sysconf->value("public_sql/localdbPassword","111111").toString();
+#else
+    localdbPassword=lds::sysconf->value("public_sql/localdbPassword","").toString();
+#endif
+    dbHostName=lds::sysconf->value("public_sql/dbHostName").toString();
+    dbDatabaseName=lds::sysconf->value("public_sql/dbDatabaseName").toString();
+    dbUserName=lds::sysconf->value("public_sql/dbUserName").toString();
+    dbPassword=lds::sysconf->value("public_sql/dbPassword").toString();
+}
+
+void public_sql::MySQL_PARAM_SAVE()
+{
+    lds::sysconf->setValue("public_sql/dbHostName", dbHostName);
+    lds::sysconf->setValue("public_sql/dbDatabaseName", dbDatabaseName);
+    lds::sysconf->setValue("public_sql/dbUserName", dbUserName);
+    lds::sysconf->setValue("public_sql/dbPassword", dbPassword);
+
+    lds::sysconf->setValue("public_sql/islocal", islocal);
+    lds::sysconf->setValue("public_sql/localdbHostName", localdbHostName);
+    lds::sysconf->setValue("public_sql/localdbDatabaseName", localdbDatabaseName);
+    lds::sysconf->setValue("public_sql/localdbUserName", localdbUserName);
+    lds::sysconf->setValue("public_sql/localdbPassword", localdbPassword);
+}
+
+//
+bool public_sql::CONNECT_MySQL()
+{
+    bool flag=false;
+    //1
+    {
+        QSqlDatabase db = lds_thread::getThreadDbAndcreatdb();
+
+        db.setHostName(public_sql::getdbHostName());
+        db.setDatabaseName(public_sql::getdbDatabaseName());
+        db.setUserName(public_sql::getdbUserName());
+        db.setPassword(public_sql::getdbPassword());
+        db.setConnectOptions("CLIENT_SSL=1;CLIENT_IGNORE_SPACE=1;");
+
+        if(db.hostName().isEmpty()
+                || db.databaseName().isEmpty()
+                || db.userName().isEmpty()
+                ){
+            public_sql::MySQL_info=public_sql::err_path_arg.arg(tr("数据库连接失败")).arg(tr("有参数为空"));
+            return false;
+        } else {
+            flag=db.open();
+            if(!flag) {
+                public_sql::MySQL_info=public_sql::err_path_arg.arg(tr("数据库连接失败")).arg(tr("打开失败"));
+                return false;
+            }
+        }
+    }
+    lds_query query;
+    if(!query.exec("select now(); ")){
+        public_sql::MySQL_info=public_sql::err_path_arg.arg(tr("数据库连接失败")).arg(tr("连接错误"));
+        return false;
+    }
+    public_sql::MySQL_info=public_sql::err_path_arg.arg(tr("数据库连接成功")).arg(public_sql::islocal?tr("【本地数据】"):tr("【服务器】"));
+
+    //3
+    //tmpmysql
+    {
+        QSqlDatabase mysql = QSqlDatabase::addDatabase("QMYSQL","tmpmysql");
+        mysql.setHostName(localdbHostName);
+        mysql.setDatabaseName("mysql");//新建mysql时，这个mysql需要存在
+        mysql.setUserName(localdbUserName);
+        mysql.setPassword(localdbPassword);
+        if(mysql.open()){
+            QSqlQuery querymysql(mysql);//临时的链接
+            querymysql.exec("select @@basedir as basePath from dual");
+            querymysql.next();
+            mysqlinstallpath = querymysql.record().value(0).toString();
+            mysqlinstallpath = mysqlinstallpath.replace("\\", "/");
+        } else {
+        }
+    }
+    QSqlDatabase::removeDatabase("tmpmysql");
+    return true;
+}
+
+QString public_sql::getdbHostName()
+{
+    return islocal?localdbHostName:dbHostName;
+}
+
+QString public_sql::getdbDatabaseName()
+{
+    return islocal?localdbDatabaseName:dbDatabaseName;
+}
+
+QString public_sql::getdbUserName()
+{
+    return islocal?localdbUserName:dbUserName;
+}
+
+QString public_sql::getdbPassword()
+{
+    return islocal?localdbPassword:dbPassword;
+}
+
+void public_sql::setdbHostName(const QString &db_host_name)
+{
+    if(islocal){
+        localdbHostName = db_host_name;
+    } else {
+        dbHostName = db_host_name;
+    }
+}
+
+void public_sql::setdbDatabaseName(const QString &db_database_name)
+{
+    if(islocal){
+        localdbDatabaseName = db_database_name;
+    } else {
+        dbDatabaseName = db_database_name;
+    }
+}
+
+void public_sql::setdbUserName(const QString &db_usr_name)
+{
+    if(islocal){
+        localdbUserName = db_usr_name;
+    } else {
+        dbUserName = db_usr_name;
+    }
+}
+
+void public_sql::setdbPassword(const QString &db_pwd)
+{
+    if(islocal){
+        localdbPassword = db_pwd;
+    } else {
+        dbPassword = db_pwd;
+    }
+}
+
+bool public_sql::MySQL_backup(QWidget *parent, const QString &dbpath, const QString &filename, const QString &disktype)
+{
+    //2
+    MySQL_info.clear();
+    QDir dir(dbpath);
+    if(dir.exists()){
+    } else {
+        dir.mkpath(dbpath);
+    }
+    QFile file(dbpath+"/"+filename);
+    lds_messagebox_loading *loading = new lds_messagebox_loading(parent, tr("数据库备份"));
+    loading->setText(disktype+tr("正在备份数据库..."));
+    lds_roundeddialog_rect_align loading_help(loading);
+    //3
+    //获取备份 指令
+    QString path = file.fileName();
+    QString cmd;
+    QString cmdm;
+    QString m_tables = "t_m_curamount t_m_deposit t_m_gift t_m_hang_balance t_m_member t_m_member_log ";
+    m_tables += "t_m_member_other t_m_member_type t_m_parameter t_m_pay t_m_point t_m_point_gift";
+    QString ip = getdbHostName();
+    QString username =getdbUserName();
+    QString password = getdbPassword();
+    QString databaseName = getdbDatabaseName();
+#ifdef Q_OS_UNIX
+    //!非压缩备份
+    cmd = "mysqldump";
+    if(ip != "127.0.0.1") {
+        cmd += " -h" + ip;
+    }
+    cmd += " -u"+username;
+    if(!password.isEmpty()) {
+        cmd += " -p" + password;
+    }
+    cmd += " " + databaseName;
+
+    cmdm = cmd;
+    cmdm += "  " + m_tables;
+    cmdm+= " > " + path+"m";
+
+    cmd += " > " + path;
+
+    //!压缩备份 mysqldump -h主机名  -P端口 -u用户名 -p密码 (–database) 数据库名 > 文件名.sql
+    //    cmd = QString("mysqldump %1 %2 %3 %4|gzip > %5")
+    //            .arg(ip != "127.0.0.1"?("-h"+ip):(""))
+    //            .arg("-u"+username)
+    //            .arg(!password.isEmpty()?("-p"+password):(""))
+    //            .arg(databaseName)
+    //            .arg(path);
+#else
+    cmd = QString("\"%1\"")
+            .arg(public_sql::mysqlinstallpath+"/bin/mysqldump");
+    if(ip != "127.0.0.1") {
+        cmd += " -h" + ip;
+    }
+    cmd += " -u"+username;
+    if(!password.isEmpty()) {
+        cmd += " -p" + password;
+    }
+    cmd += " " + databaseName;
+
+
+    cmdm = cmd;
+    cmdm += "  " + m_tables;
+    cmdm+= " > " + path+"m";
+
+    cmd += " > " + path;
+#endif
+    qDebug() << cmd;
+
+    //开始备份，提交备份信息
+    int flag=-1;
+    QFuture<void> future = QtConcurrent::run(PUBLIC_EXCUTE_MYSQL,
+                                             loading,
+                                             &flag,
+                                             cmd,
+                                             cmdm);
+    loading_help.exec();
+    //4
+    if(flag==1){
+        MySQL_info=err_path_arg.arg(tr("备份成功")).arg(dbpath+"/"+filename);
+        return true;
+    } else {
+        MySQL_info=err_path_arg.arg(tr("备份失败")).arg(dbpath+"/"+filename);
+        return false;
+    }
+}
+
+bool public_sql::MySQL_restore(QWidget *parent, const QString &dbpath, const QString &filename, const QString &disktype)
+{
+    //1
+    foreach(const QString &dbname, QSqlDatabase::connectionNames()) {
+        QSqlDatabase::database(dbname).close();
+    }
+
+    MySQL_info.clear();
+    //2
+    QDir dir(dbpath);
+    if(dir.exists()){
+    } else {
+        dir.mkpath(dbpath);
+    }
+
+    QFile file(dbpath+"/"+filename);
+    if(!filename.isEmpty()
+            &&file.exists()){
+
+    } else {//
+        MySQL_info=err_path_arg.arg(tr("文件不存在")).arg(dbpath+"/"+filename);
+        return false;
+    }//
+
+    //3
+    QString path = file.fileName();
+
+    QString cmd;
+    QString cmdm;
+    QString ip = getdbHostName();
+    QString username =getdbUserName();
+    QString password = getdbPassword();
+    QString databaseName = getdbDatabaseName();
+#ifdef Q_OS_UNIX
+    //!非压缩还原
+    cmd = "mysql";
+    if(ip != "127.0.0.1") {
+        cmd += " -h" + ip;
+    }
+    cmd += " -u"+username;
+    if(!password.isEmpty()) {
+        cmd += " -p" + password;
+    }
+    cmd += " " + databaseName;
+    cmd += " < " + path;
+    //!压缩还原 gunzip < backupfile.sql.gz | mysql -uusername -ppassword databasename
+    //    cmd = QString("gunzip < %1 | mysql %2 %3 %4")
+    //            .arg(path)
+    //            .arg("-u"+username)
+    //            .arg(password.isEmpty()?"":("-p"+password))
+    //            .arg(databaseName)
+    //            ;
+#else
+    cmd = QString("\"%1\"")
+            .arg(public_sql::mysqlinstallpath+"/bin/mysql");
+    if(ip != "127.0.0.1") {
+        cmd += " -h" + ip;
+    }
+    cmd += " -u"+username;
+    if(!password.isEmpty()) {
+        cmd += " -p" + password;
+    }
+    cmd += " " + databaseName;
+    cmd += " < " + /*QString("\"%1\"").arg*/(path);
+#endif
+    //开始还原，提交备份信息
+    qDebug() << cmd;
+    int flag=-1;
+    lds_messagebox_loading *loading = new lds_messagebox_loading(parent, tr("数据库还原"));
+    loading->setText(disktype+tr("正在还原数据库..."));
+    lds_roundeddialog_rect_align loading_help(loading);
+
+
+    cmdm = "";
+    QFuture<void> future = QtConcurrent::run(PUBLIC_EXCUTE_MYSQL,
+                                             loading,
+                                             &flag,
+                                             cmd,
+                                             cmdm);
+    loading_help.exec();
+    //4
+    if(flag==1){
+        MySQL_info=err_path_arg.arg(tr("还原成功")).arg(dbpath+"/"+filename);
+        return true;
+    } else {
+        MySQL_info=err_path_arg.arg(tr("还原失败")).arg(dbpath+"/"+filename);
+        return false;
+    }
+}
+
+qint64 public_sql::MySQL_fileFilterWrite(QFile *file, QString data)
+{
+    data = data.replace(',', "");
+    return file->write(data.toLocal8Bit());
+}
+
+int public_sql::MySQL_creatlocal_mysql_hddpos(QWidget *parent)
+{
+    MySQL_info.clear();
+    QSqlDatabase::addDatabase("QMYSQL", "tmpmysql");
+    int dberrflag=0;
+    //! <loop_1_begin>
+    while(1){
+        QString errstring;
+        QSqlDatabase db = QSqlDatabase::database("tmpmysql");
+        db.setHostName(localdbHostName);
+        db.setDatabaseName("mysql");
+        db.setUserName(localdbUserName);
+        db.setPassword(localdbPassword);
+
+        if(db.open())
+            dberrflag = 1;
+        if(dberrflag == 1){//1
+            QSqlQuery query(db);
+            query.exec("SHOW DATABASES like 'hddpos';");
+            if(!query.next()) {
+                dberrflag = 2;
+                //解压初始化，arm下有效
+                fastfd_init_UNZIP();
+                //新建数据库
+                if(query.exec("create database hddpos;")) {
+                    //权限
+                    {
+                        //数据库首次使用
+                        query.exec("select @@basedir");
+                        query.next();
+                        mysqlinstallpath = query.record().value(0).toString();
+                        mysqlinstallpath = mysqlinstallpath.replace("\\", "/");
+#ifdef Q_OS_WIN
+                        lds::sysconf->setValue("system_setting/bofanglujing", qApp->applicationDirPath()+"/"+"fastfd_localdata/image_dish_dir_2");
+#endif
+
+                        if(public_sql::MySQL_restore(parent, public_sql::show_chinese_sql_file_dir, public_sql::show_chinese_sql_file, tr("首次使用:"))) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        break;
+    }
+    //! <loop_1_end>
+    QSqlDatabase::removeDatabase("tmpmysql");
+    return dberrflag;
+}
+
+void public_sql::WX_POLLING()
+{
+    static WX_POLLING_thread t;
+    if(!t.isRunning()){
+        QObject().moveToThread(&t);
+        t.start();
+        t.waitForStarted();
+    }
+}
+
+QString public_sql::makedir(const QString &dir)
+{
+    if(QDir().exists(dir))return "dir is existed";
+
+    if(QDir().mkdir(dir)) return "dir create success";
+
+    return "dir create failure";
+}
+
+QString public_sql::copyfile(const QString &filefrom, const QString &fileto)
+{
+    if(QFile(fileto).exists()) return "file is existed";
+    //    ReadOwner = 0x4000, WriteOwner = 0x2000, ExeOwner = 0x1000,
+    //    ReadUser  = 0x0400, WriteUser  = 0x0200, ExeUser  = 0x0100,
+    //    ReadGroup = 0x0040, WriteGroup = 0x0020, ExeGroup = 0x0010,
+    //    ReadOther = 0x0004, WriteOther = 0x0002, ExeOther = 0x0001
+    if(QFile::copy(filefrom,  fileto)){
+        QFile::setPermissions(fileto, QFile::Permission(0x777));
+        return "file copy success";
+    }
+
+    return "file create failure";
+}
+
+QString public_sql::remove_copyfile(const QString &filefrom, const QString &fileto)
+{
+
+    if(QFile(fileto).exists()){
+        removefile(fileto);
+    }
+    if(QFile::copy(filefrom,  fileto)){
+        QFile::setPermissions(fileto, QFile::Permission(0x777));
+        return "file copy success";
+    }
+    return "file create failure";
+}
+
+bool public_sql::removefile(const QString &filename)
+{
+    return QFile(filename).remove();
+}
+
+QString public_sql::get_logo_path()
+{
+    return lds::sysconf->value("public_sql/login_logo", ":/image/widgets_pic/logo1.png").toString();
+}
+
+QString public_sql::get_print_line()
+{
+    return "_gs_print_line_";
+}
+
+void public_sql::systranslate()
+{
+    //翻译
+    QTranslator *translator = new QTranslator;
+    if(translator->load("userdata/settings/language/"+lds::SYS_LANGUAGE+"_fastfd.qm")) {
+        qApp->installTranslator(translator);
+    }
+
+    if("MM" == lds::SYS_LANGUAGE) {
+
+        if(translator->load("userdata/settings/language/EN_fastfd.qm")) {
+            qApp->installTranslator(translator);
+        }
+
+        int id = QFontDatabase::addApplicationFont("userdata/settings/font/Myanmar1.ttf");
+        if(id != -1) {
+            QFont f = qApp->font();
+            f.setFamily(QFontDatabase::applicationFontFamilies(id).first());
+            qApp->setFont(f);
+        }
+    }
+}
+
+void public_sql::syswindowicon()
+{
+#ifdef Q_OS_UNIX
+    qApp->setWindowIcon(QIcon(":/fastfd.png"));
+#else
+    qApp->setWindowIcon(QIcon(":/fastfd.ico"));
+#endif
+}
+
+void public_sql::sysstylesheet()
+{
+    //样式表
+    QFile file(QString("userdata/settings/skin/fastfd_%1.qss")
+               .arg(lds::sysconf->value("system_setting/skin_name", "obsidian").toString()));
+    if(file.open(QFile::ReadOnly)){
+        //logo
+        QString login_logo=lds::sysconf->value("public_sql/login_logo").toString();
+        if(login_logo.isEmpty()){
+            login_logo=":/image/widgets_pic/logo1.png";
+        }
+        qApp->setStyleSheet(file.readAll());
+        file.close();
+    }
+}
+
+bool public_sql::syslimitcheck(QWidget *parent)
+{
+#ifdef Q_OS_WIN
+    //加密狗检测
+    {
+        public_encryption_dog edog;
+        QDateTime sqldt = n_func::f_get_sysdatetime();
+        int remainday;
+        QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\fastfd",
+                           QSettings::NativeFormat);
+        //默认
+        if(settings.value("window_soft_limit/date",QDate()).toDate().isNull()){
+            settings.setValue("window_soft_limit/date", sqldt.date());
+            settings.setValue("window_soft_limit/canuse", false);
+        }
+#ifdef QT_DEBUG
+        settings.setValue("window_soft_limit/canuse", true);
+#endif
+        while(1){
+            //若是没有激活的话
+            if(!settings.value("window_soft_limit/canuse").toBool()){
+                if((remainday=(settings.value("window_soft_limit/date").toDate().daysTo(sqldt.date())))>30){
+                    lds_messagebox::information(parent, QObject::tr("软件有效期")+QObject::tr("剩余")+QString::number(30-remainday)+QObject::tr("天"),QObject::tr("软件使用已经超过30天，请插入加密狗以便继续使用"));
+                } else {
+                    //软件在使用期内
+                    if(0!=lds_messagebox::question(parent, QObject::tr("软件有效期/软件在试用期内")+QObject::tr("剩余")+QString::number(30-remainday)+QObject::tr("天")
+                                                   ,QObject::tr("是否插入加密狗激活?"), QObject::tr("确定"),QObject::tr("取消"))){
+                        break;
+                    }
+                }
+                if(0==lds_messagebox::question(parent, QObject::tr("软件有效期"),QObject::tr("请插入加密狗"),QObject::tr("确定"),QObject::tr("取消"))){
+                    if(!edog.conductlock()){
+                        lds_messagebox::warning(parent, QObject::tr("软件有效期/加密狗检测"),edog.errorString());
+                        return 0;
+                    }
+                    settings.setValue("window_soft_limit/canuse", true);
+                    lds_messagebox::information(parent, QObject::tr("软件有效期/加密狗检测"),QObject::tr("软件激活成功"));
+                } else {
+                    lds_messagebox::information(parent, QObject::tr("软件有效期/加密狗检测"),QObject::tr("操作取消"));
+                    return 0;
+                }
+            }
+            break;
+        }
+    }
+#else
+    if(!w_sys_manage_sqlcopy_soft_limit::static_soft_limit_check(parent)){
+        return 0;
+    }
+#endif
+    return 1;
+}
+
+void public_sql::sysstart(public_loginDialog *login)
+{
+    public_sql::save_login = login;
+    //版本号
+    login->setversion("V"+public_sql::get_MySQL_sqlversion()/*数据库版本*/+"9"/*软件版本*/+"."+"170412"/*修改日期*/);
+    connect(&backheader::printer,SIGNAL(errorString(QString, QString)),login,SLOT(showprinterr(QString, QString)));
+    if(_d=="1") {
+        login->showmemoinfo();
+    }
+    //登录界面
+    login->init(_u, _p);
+    //全局指针保存
+    lds::setwflagFrameless(login);
+    login->setFixedSize(lds::MAIN_WINDOW_SIZE);
+    login->setWindowTitle(QObject::tr("用户登录"));
+#if (defined QT_DEBUG) || (defined Q_OS_WIN)
+#else
+    login->move(0,0);
+#endif
+}
+
+void public_sql::syssetcode()
+{
+    //设置编码
+    QTextCodec *codec = QTextCodec::codecForName("UTF-8");//中文可用//包含头文件
+    QTextCodec::setCodecForLocale(codec);
+
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+#else
+    QTextCodec::setCodecForCStrings(codec);
+    QTextCodec::setCodecForTr(codec);
+#endif
+}
+
+void public_sql::sysdebugmode(int argc, char *argv[])
+{
+    //登录界面,从参数中获取usr和passwd
+    //./fastfd -u1111 -p1111 -d1 用户名 密码 debug模式
+    if(argc>1){
+        //1
+        QStringList ps;
+        for(int index=1;index < argc;index++){
+            ps.append(argv[index]);
+        }
+        //2
+        QMap<QString, QString> pre_value;
+        foreach(QString p, ps){
+            pre_value.insert(p.mid(0, 2), p.mid(2));
+        }
+        //3
+        _u=pre_value.value("-u");
+        _p=pre_value.value("-p");
+        _d=pre_value.value("-d");
+    }
+
+
+#if (defined Q_OS_WIN)
+    //    qInstallMessageHandler(customMessageHandler);
+#endif
+
+#if (defined QT_NO_DEBUG)/* || (defined Q_OS_WIN)*/
+    if(_d.isEmpty()
+            ||_d.toInt()==0){
+#if QT_VERSION < QT_VERSION_CHECK(5,0,0)
+        qInstallMsgHandler(customMessageHandler);
+#else
+        qInstallMessageHandler(customMessageHandler);
+#endif
+    }
+#endif
+}
+
+//回调函数实现debug信息到文件
+//有做法自动弹出，可以设置
+//预订单，落单，付款，结束后返回
+#if QT_VERSION < QT_VERSION_CHECK(5,0,0)
+void public_sql::customMessageHandler(QtMsgType type, const char *msg)
+{
+    QString txt;
+    switch (type) {
+    //调试信息提示
+    case QtDebugMsg:
+        break;
+        //一般的warning提示
+    case QtWarningMsg:
+        txt = QString("Warning: %1").arg(msg);
+        break;
+        //严重错误提示
+    case QtCriticalMsg:
+        txt = QString("Critical: %1").arg(msg);
+        break;
+        //致命错误提示
+    case QtFatalMsg:
+        txt = QString("Fatal: %1").arg(msg);
+        break;
+    }
+
+    //    if(lds::sysconf->value("system_setting/error_log_toggled", false).toBool()) {
+    //        QFile file(lds::fastfd_localdata() + "/error_log.txt");
+    //        if(file.open(QFile::WriteOnly | QFile::Append)){
+    //            file.write(msg+QByteArray("\n"));
+    //        }
+    //    }
+}
+#else
+void public_sql::customMessageHandler(QtMsgType type, const QMessageLogContext &msg, const QString &text)
+{
+    QString txt;
+    switch (type) {
+    //调试信息提示
+    case QtDebugMsg:
+        break;
+        //一般的warning提示
+    case QtWarningMsg:
+        txt = QString("Warning: %1").arg(text);
+        break;
+        //严重错误提示
+    case QtCriticalMsg:
+        txt = QString("Critical: %1").arg(text);
+        break;
+        //致命错误提示
+    case QtFatalMsg:
+        txt = QString("Fatal: %1").arg(text);
+        break;
+    }
+}
+
+#endif
+QString public_sql::getTableName(QString ch_tableno)
+{
+    lds_query query;
+    QString vch_tablename;
+    if(ch_tableno.isEmpty())  ch_tableno  = frontViewDialog_virtual::cur_table_no;
+    query.exec(QString("select vch_tablename from cey_bt_table where ch_tableno = '%1';")
+               .arg(ch_tableno));
+    if(query.next()){
+        vch_tablename = query.record().value("vch_tablename").toString();
+    } else {
+        vch_tablename = tr("快餐");
+    }
+
+    return vch_tablename;
+}
+
+QString public_sql::getTableBillno(QString ch_tableno)
+{
+    lds_query query;
+    QString ch_billno;
+    if(ch_tableno.isEmpty())  ch_tableno  = frontViewDialog_virtual::cur_table_no;
+    query.exec(QString("select ch_billno from cey_bt_table where ch_tableno = '%1';")
+               .arg(ch_tableno));
+    if(query.next()){
+        ch_billno = query.record().value("ch_billno").toString();
+    }
+    return ch_billno;
+}
+
+QString public_sql::getTablenoByChbillno(const QString &ch_billno)
+{
+    lds_query query;
+    query.exec(QString("select ch_tableno from cey_u_table where ch_billno = '%1' ")
+               .arg(ch_billno));
+    query.next();
+    return query.record().value("ch_tableno").toString();
+}
+
+float public_sql::getTotalBy_int_flowID(const QString &int_flowID)
+{
+    lds_query query;
+    query.exec(QString("select sum(" + sql_total_by_cey_u_orderdish + ")  from cey_u_orderdish where int_flowID = '%1' ")
+               .arg(int_flowID));
+    query.next();
+    return query.record().value(0).toFloat();
+}
+
+float public_sql::getTotalBy_ch_billno(const QString &ch_billno)
+{
+    //赠送、taocai
+    lds_query query;
+    query.exec(QString("select sum( "+ sql_total_by_cey_u_orderdish +" ) from cey_u_orderdish where ch_billno = '%1' ")
+               .arg(ch_billno));
+    query.next();
+    return query.record().value(0).toFloat();
+}
+
+void public_sql::action_sql_map_init()
+{
+    //action_sql_map x14
+    action_sql_map.insert("insert-cey_bt_cp_dish" , "insert into cey_bt_cp_dish(ch_dishno,ch_no) values(:ch_dishno,:ch_no)" );
+    action_sql_map.insert("update-cey_bt_cp_dish" , "update cey_bt_cp_dish set ch_dishno=:ch_dishno,ch_no=:ch_no " );
+    action_sql_map.insert("insert-cey_bt_cp_memo" , "insert into cey_bt_cp_memo(ch_no,vch_cp_memo,ch_typeno,num_add_price) values(:ch_no,:vch_cp_memo,:ch_typeno,:num_add_price)" );
+    action_sql_map.insert("update-cey_bt_cp_memo" , "update cey_bt_cp_memo set ch_no=:ch_no,vch_cp_memo=:vch_cp_memo,ch_typeno=:ch_typeno,num_add_price=:num_add_price " );
+    action_sql_map.insert("insert-cey_bt_cp_type" , "insert into cey_bt_cp_type(ch_typeno,vch_typename) values(:ch_typeno,:vch_typename)" );
+    action_sql_map.insert("update-cey_bt_cp_type" , "update cey_bt_cp_type set ch_typeno=:ch_typeno,vch_typename=:vch_typename " );
+    action_sql_map.insert("insert-cey_bt_dish" , "insert into cey_bt_dish(ch_dishno,vch_dishname,vch_spell,vch_english,ch_dish_typeno,ch_unitno,num_price,ch_suitflag,ch_discount,ch_curprice,ch_tempflag,ch_stopflag,ch_printflag,vch_printer,ch_sub_typeno,ch_materialno,ch_serviceflag,ch_lowflag,num_m_price,ch_deductflag,ch_deducttype,int_deduct,num_deduct,ch_saleflag,ch_saletype,int_sale_deduct,num_sale,item_flag,vch_pur_unitno,int_unit_rate,ch_off,vch_subno,num_sale_price,ch_outflag,vch_outprint,int_rate,ch_weight,vch_barcode,ch_groupno,ch_material_flag) values(:ch_dishno,:vch_dishname,:vch_spell,:vch_english,:ch_dish_typeno,:ch_unitno,:num_price,:ch_suitflag,:ch_discount,:ch_curprice,:ch_tempflag,:ch_stopflag,:ch_printflag,:vch_printer,:ch_sub_typeno,:ch_materialno,:ch_serviceflag,:ch_lowflag,:num_m_price,:ch_deductflag,:ch_deducttype,:int_deduct,:num_deduct,:ch_saleflag,:ch_saletype,:int_sale_deduct,:num_sale,:item_flag,:vch_pur_unitno,:int_unit_rate,:ch_off,:vch_subno,:num_sale_price,:ch_outflag,:vch_outprint,:int_rate,:ch_weight,:vch_barcode,:ch_groupno,:ch_material_flag)" );
+    action_sql_map.insert("update-cey_bt_dish" , "update cey_bt_dish set ch_dishno=:ch_dishno,vch_dishname=:vch_dishname,vch_spell=:vch_spell,vch_english=:vch_english,ch_dish_typeno=:ch_dish_typeno,ch_unitno=:ch_unitno,num_price=:num_price,ch_suitflag=:ch_suitflag,ch_discount=:ch_discount,ch_curprice=:ch_curprice,ch_tempflag=:ch_tempflag,ch_stopflag=:ch_stopflag,ch_printflag=:ch_printflag,vch_printer=:vch_printer,ch_sub_typeno=:ch_sub_typeno,ch_materialno=:ch_materialno,ch_serviceflag=:ch_serviceflag,ch_lowflag=:ch_lowflag,num_m_price=:num_m_price,ch_deductflag=:ch_deductflag,ch_deducttype=:ch_deducttype,int_deduct=:int_deduct,num_deduct=:num_deduct,ch_saleflag=:ch_saleflag,ch_saletype=:ch_saletype,int_sale_deduct=:int_sale_deduct,num_sale=:num_sale,item_flag=:item_flag,vch_pur_unitno=:vch_pur_unitno,int_unit_rate=:int_unit_rate,ch_off=:ch_off,vch_subno=:vch_subno,num_sale_price=:num_sale_price,ch_outflag=:ch_outflag,vch_outprint=:vch_outprint,int_rate=:int_rate,ch_weight=:ch_weight,vch_barcode=:vch_barcode,ch_groupno=:ch_groupno,ch_material_flag=:ch_material_flag " );
+    action_sql_map.insert("insert-cey_bt_dish_subtype" , "insert into cey_bt_dish_subtype(ch_sub_typeno,vch_sub_typename,ch_dish_typeno,ch_labelprint_flag) values(:ch_sub_typeno,:vch_sub_typename,:ch_dish_typeno,:ch_labelprint_flag)" );
+    action_sql_map.insert("update-cey_bt_dish_subtype" , "update cey_bt_dish_subtype set ch_sub_typeno=:ch_sub_typeno,vch_sub_typename=:vch_sub_typename,ch_dish_typeno=:ch_dish_typeno,ch_labelprint_flag=:ch_labelprint_flag " );
+    action_sql_map.insert("insert-cey_bt_dish_suit" , "insert into cey_bt_dish_suit(int_flowid,ch_suitno,ch_dishno,num_num,ch_dishno_chang,num_num_change) values(:int_flowid,:ch_suitno,:ch_dishno,:num_num,:ch_dishno_chang,:num_num_change)" );
+    action_sql_map.insert("update-cey_bt_dish_suit" , "update cey_bt_dish_suit set int_flowid=:int_flowid,ch_suitno=:ch_suitno,ch_dishno=:ch_dishno,num_num=:num_num,ch_dishno_chang=:ch_dishno_chang,num_num_change=:num_num_change " );
+    action_sql_map.insert("insert-cey_bt_dish_type" , "insert into cey_bt_dish_type(ch_dish_typeno,vch_dish_typename) values(:ch_dish_typeno,:vch_dish_typename)" );
+    action_sql_map.insert("update-cey_bt_dish_type" , "update cey_bt_dish_type set ch_dish_typeno=:ch_dish_typeno,vch_dish_typename=:vch_dish_typename " );
+    action_sql_map.insert("insert-cey_bt_dish_warn" , "insert into cey_bt_dish_warn(int_flowID,dt_date,ch_dishno,num_num,num_sale,ch_state,vch_operID,dt_operdate,vch_operID2,dt_operdate2) values(:int_flowID,:dt_date,:ch_dishno,:num_num,:num_sale,:ch_state,:vch_operID,:dt_operdate,:vch_operID2,:dt_operdate2)" );
+    action_sql_map.insert("update-cey_bt_dish_warn" , "update cey_bt_dish_warn set int_flowID=:int_flowID,dt_date=:dt_date,ch_dishno=:ch_dishno,num_num=:num_num,num_sale=:num_sale,ch_state=:ch_state,vch_operID=:vch_operID,dt_operdate=:dt_operdate,vch_operID2=:vch_operID2,dt_operdate2=:dt_operdate2 " );
+    action_sql_map.insert("insert-cey_bt_paymode" , "insert into cey_bt_paymode(ch_paymodeno,vch_paymodename,ch_IDflag,ch_faceflag,ch_changeflag,ch_incomeflag,ch_key,vch_arg1,vch_arg2,vch_arg3,vch_arg4,vch_arg5,vch_arg6,vch_arg7) values(:ch_paymodeno,:vch_paymodename,:ch_IDflag,:ch_faceflag,:ch_changeflag,:ch_incomeflag,:ch_key,:vch_arg1,:vch_arg2,:vch_arg3,:vch_arg4,:vch_arg5,:vch_arg6,:vch_arg7)" );
+    action_sql_map.insert("update-cey_bt_paymode" , "update cey_bt_paymode set ch_paymodeno=:ch_paymodeno,vch_paymodename=:vch_paymodename,ch_IDflag=:ch_IDflag,ch_faceflag=:ch_faceflag,ch_changeflag=:ch_changeflag,ch_incomeflag=:ch_incomeflag,ch_key=:ch_key,vch_arg1=:vch_arg1,vch_arg2=:vch_arg2,vch_arg3=:vch_arg3,vch_arg4=:vch_arg4,vch_arg5=:vch_arg5,vch_arg6=:vch_arg6,vch_arg7=:vch_arg7 " );
+    action_sql_map.insert("insert-cey_bt_suit_change" , "insert into cey_bt_suit_change(int_flowID,ch_dishno,num_num_change) values(:int_flowID,:ch_dishno,:num_num_change)" );
+    action_sql_map.insert("update-cey_bt_suit_change" , "update cey_bt_suit_change set int_flowID=:int_flowID,ch_dishno=:ch_dishno,num_num_change=:num_num_change " );
+    action_sql_map.insert("insert-cey_bt_table" , "insert into cey_bt_table(ch_tableno,vch_tablename,ch_typeno,ch_billno,ch_lockflag,int_person,vch_memo,ch_state,dt_datetime,ch_areaNo) values(:ch_tableno,:vch_tablename,:ch_typeno,:ch_billno,:ch_lockflag,:int_person,:vch_memo,:ch_state,:dt_datetime,:ch_areaNo)" );
+    action_sql_map.insert("update-cey_bt_table" , "update cey_bt_table set ch_tableno=:ch_tableno,vch_tablename=:vch_tablename,ch_typeno=:ch_typeno,ch_billno=:ch_billno,ch_lockflag=:ch_lockflag,int_person=:int_person,vch_memo=:vch_memo,ch_state=:ch_state,dt_datetime=:dt_datetime,ch_areaNo=:ch_areaNo " );
+    action_sql_map.insert("insert-cey_bt_table_area" , "insert into cey_bt_table_area(ch_areano,vch_areaname) values(:ch_areano,:vch_areaname)" );
+    action_sql_map.insert("update-cey_bt_table_area" , "update cey_bt_table_area set ch_areano=:ch_areano,vch_areaname=:vch_areaname " );
+    action_sql_map.insert("insert-cey_bt_table_type" , "insert into cey_bt_table_type(ch_typeno,vch_typename,ch_pricekind,ch_service_mode,ch_serviceflag,int_start_minute,num_start_amount,int_unit_minute,num_unit_amount,int_over,num_ration,int_rate,num_max_service,ch_low_mode,num_lowcost,int_begin_time) values(:ch_typeno,:vch_typename,:ch_pricekind,:ch_service_mode,:ch_serviceflag,:int_start_minute,:num_start_amount,:int_unit_minute,:num_unit_amount,:int_over,:num_ration,:int_rate,:num_max_service,:ch_low_mode,:num_lowcost,:int_begin_time)" );
+    action_sql_map.insert("update-cey_bt_table_type" , "update cey_bt_table_type set ch_typeno=:ch_typeno,vch_typename=:vch_typename,ch_pricekind=:ch_pricekind,ch_service_mode=:ch_service_mode,ch_serviceflag=:ch_serviceflag,int_start_minute=:int_start_minute,num_start_amount=:num_start_amount,int_unit_minute=:int_unit_minute,num_unit_amount=:num_unit_amount,int_over=:int_over,num_ration=:num_ration,int_rate=:int_rate,num_max_service=:num_max_service,ch_low_mode=:ch_low_mode,num_lowcost=:num_lowcost,int_begin_time=:int_begin_time " );
+    action_sql_map.insert("insert-cey_bt_unit" , "insert into cey_bt_unit(ch_unitno,vch_unitname,ch_numtype,num_default) values(:ch_unitno,:vch_unitname,:ch_numtype,:num_default)" );
+    action_sql_map.insert("update-cey_bt_unit" , "update cey_bt_unit set ch_unitno=:ch_unitno,vch_unitname=:vch_unitname,ch_numtype=:ch_numtype,num_default=:num_default " );
+    action_sql_map.insert("insert-material_bt_dish" , "insert into material_bt_dish(int_flowID,ch_dishno,ch_itemno,num_num) values(:int_flowID,:ch_dishno,:ch_itemno,:num_num)" );
+    action_sql_map.insert("update-material_bt_dish" , "update material_bt_dish set int_flowID=:int_flowID,ch_dishno=:ch_dishno,ch_itemno=:ch_itemno,num_num=:num_num " );
+
+    //4
+    action_sql_map.insert("insert-t_m_curamount" , "insert into t_m_curamount(vch_memberno,num_amount,num_hangamount,num_point,vch_operID,dt_operdate,ch_branchno) values(:vch_memberno,:num_amount,:num_hangamount,:num_point,:vch_operID,:dt_operdate,:ch_branchno)" );
+    action_sql_map.insert("update-t_m_curamount" , "update t_m_curamount set vch_memberno=:vch_memberno,num_amount=:num_amount,num_hangamount=:num_hangamount,num_point=:num_point,vch_operID=:vch_operID,dt_operdate=:dt_operdate,ch_branchno=:ch_branchno "  );
+    action_sql_map.insert("insert-t_m_gift" , "insert into t_m_gift(int_flowID,ch_giftno,vch_giftname,num_point) values(:int_flowID,:ch_giftno,:vch_giftname,:num_point)" );
+    action_sql_map.insert("update-t_m_gift" , "update t_m_gift set int_flowID=:int_flowID,ch_giftno=:ch_giftno,vch_giftname=:vch_giftname,num_point=:num_point "  );
+    action_sql_map.insert("insert-t_m_member" , "insert into t_m_member(vch_memberno,vch_member,ch_typeno,vch_id,dt_birthday,vch_tel,vch_handtel,vch_address,dt_limit,ch_state,num_limit,ch_cardflag,vch_cardno,vch_password,vch_operID,dt_operdate,int_basedata,dt_sendtime) values(:vch_memberno,:vch_member,:ch_typeno,:vch_id,:dt_birthday,:vch_tel,:vch_handtel,:vch_address,:dt_limit,:ch_state,:num_limit,:ch_cardflag,:vch_cardno,:vch_password,:vch_operID,:dt_operdate,:int_basedata,:dt_sendtime)" );
+    action_sql_map.insert("update-t_m_member" , "update t_m_member set vch_memberno=:vch_memberno,vch_member=:vch_member,ch_typeno=:ch_typeno,vch_id=:vch_id,dt_birthday=:dt_birthday,vch_tel=:vch_tel,vch_handtel=:vch_handtel,vch_address=:vch_address,dt_limit=:dt_limit,ch_state=:ch_state,num_limit=:num_limit,ch_cardflag=:ch_cardflag,vch_cardno=:vch_cardno,vch_password=:vch_password,vch_operID=:vch_operID,dt_operdate=:dt_operdate,int_basedata=:int_basedata,dt_sendtime=:dt_sendtime "  );
+    action_sql_map.insert("insert-t_m_member_type" , "insert into t_m_member_type(ch_typeno,vch_typename,ch_attribute,ch_favourable,ch_pricekind,int_discount,ch_projectno,ch_calc,ch_calc_type,int_calc_unit,ch_area_flag,int_backcash_rate,int_card_baseamount) values(:ch_typeno,:vch_typename,:ch_attribute,:ch_favourable,:ch_pricekind,:int_discount,:ch_projectno,:ch_calc,:ch_calc_type,:int_calc_unit,:ch_area_flag,:int_backcash_rate,:int_card_baseamount)" );
+    action_sql_map.insert("update-t_m_member_type" , "update t_m_member_type set ch_typeno=:ch_typeno,vch_typename=:vch_typename,ch_attribute=:ch_attribute,ch_favourable=:ch_favourable,ch_pricekind=:ch_pricekind,int_discount=:int_discount,ch_projectno=:ch_projectno,ch_calc=:ch_calc,ch_calc_type=:ch_calc_type,int_calc_unit=:int_calc_unit,ch_area_flag=:ch_area_flag,int_backcash_rate=:int_backcash_rate,int_card_baseamount=:int_card_baseamount "  );
+
+    action_sql_map.insert("insert-t_m_parameter" , "insert into t_m_parameter(vch_parameter,vch_value,vch_explain) values(:vch_parameter,:vch_value,:vch_explain)" );
+
+}
+
+void public_sql::action_sql_debug()
+{
+    lds_query query;
+    query.exec("SELECT * FROM cey_web_table_version;");
+    while(query.next()) {
+        action_sql_debug_piece(query.record().value("vch_sqltablename").toString());
+    }
+    action_sql_debug_piece("cey_u_checkout_detail");
+    action_sql_debug_piece("cey_u_checkout_master");
+    action_sql_debug_piece("cey_u_orderdish");
+    action_sql_debug_piece("cey_u_orderdish_log");
+    action_sql_debug_piece("cey_u_service_low");
+
+    action_sql_debug_piece("t_m_deposit");
+    action_sql_debug_piece("t_m_point");
+    action_sql_debug_piece("t_m_pay");
+    action_sql_debug_piece("cey_u_togo");
+    action_sql_debug_piece("cey_u_table");
+}
+
+void public_sql::action_sql_debug_piece(const QString &tablename)
+{
+    QString p0, p1;
+    QString update_p0;
+    lds_query query0;
+    query0.exec(QString("show columns from %1").arg(tablename));
+    while(query0.next()) {
+        if(tablename == "cey_bt_dish"
+                && (query0.record().value(0).toString() == "vch_kitchen_out_id1"
+                    || query0.record().value(0).toString() == "vch_kitchen_out_id2"
+                    || query0.record().value(0).toString() == "vch_kitchen_out_id3"
+                    || query0.record().value(0).toString() == "vch_kitchen_print_id1"
+                    || query0.record().value(0).toString() == "vch_kitchen_print_id2"
+                    || query0.record().value(0).toString() == "vch_kitchen_print_id3"
+                    || query0.record().value(0).toString() == "ch_kitchen_out_flag"
+                    || query0.record().value(0).toString() == "ch_kitchen_print_flag")
+                ) continue;
+        if(query0.record().value(0).toString() == "ch_yun_already_keep") continue;
+        p0 += query0.record().value(0).toString() +",";
+        p1 += ":"+query0.record().value(0).toString() +",";
+
+        update_p0 += query0.record().value(0).toString() + "="+":"+query0.record().value(0).toString()+",";
+    }
+    p0.chop(1);
+    p1.chop(1);
+    update_p0.chop(1);
+
+    qDebug() << ("insert-"+tablename) << "," << QString("insert into %1(%2) values(%3)")
+                .arg(tablename)
+                .arg(p0)
+                .arg(p1);
+    qDebug() << ("update-"+tablename) << ","<< QString("update %1 set %2 ")
+                .arg(tablename)
+                .arg(update_p0);
+    ;
+    //
+}
+
+
+//=========================
+#include "ui_public_sqlset_dialog.h"
+#include <QFontDialog>
+#include "public_logindialog.h"
+
+public_sqlSet::public_sqlSet(public_loginDialog *parent):
+    QDialog(parent),
+    ui(new Ui_public_sqlset_Dialog),
+    _parent(parent)
+{
+    ui->setupUi(this);
+    switch_server_loacl(public_sql::islocal);
+    ui->checkBox->setChecked(lds::sysconf->value("public_sql/islocal").toBool());
+
+    //! toolbar
+    ui->widget->setup(QStringList() << tr("重置本地文件路径")<< "privileges" << tr("确定")<< tr("退出"), Qt::AlignRight, lds_keytoolbutton::SYSKEY);
+    connect(ui->widget->index_widget(tr("重置本地文件路径")), SIGNAL(clicked()),this,SLOT(updatelocalpath()));
+    connect(ui->widget->index_widget(tr("确定")), SIGNAL(clicked()),this,SLOT(took()));
+    connect(ui->widget->index_widget(tr("退出")), SIGNAL(clicked()),this,SLOT(toexit()));
+    connect(ui->checkBox,SIGNAL(toggled(bool)), this, SLOT(switch_server_loacl(bool)));
+    connect(ui->widget->index_widget("privileges"), SIGNAL(clicked()),this,SLOT(enable_remote_MYSQL_connect()));
+}
+
+bool public_sqlSet::privileges(QString *errstring)
+{
+    lds_query query;
+    if(privileges(query)) {
+        return true;
+    }
+    if(errstring)
+        *errstring = query.lastError().text();
+    return false;
+}
+
+bool public_sqlSet::privileges(QSqlQuery &query)
+{
+    if(query.exec(QString(" grant all privileges on *.* to root@\"%\" identified by \"%1\" ").arg(public_sql::getdbPassword()))) {
+        if(query.exec("flush privileges ")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void public_sqlSet::took()
+{
+    if(public_sql::islocal){
+        public_sql::localdbHostName = ui->lineEdit_hostname->text();
+        public_sql::localdbDatabaseName = ui->lineEdit_dbname->text();
+        public_sql::localdbUserName = ui->lineEdit_usrname->text();
+        public_sql::localdbPassword = ui->lineEdit_password->text();
+    } else {
+        public_sql::dbHostName = ui->lineEdit_hostname->text();
+        public_sql::dbDatabaseName = ui->lineEdit_dbname->text();
+        public_sql::dbUserName = ui->lineEdit_usrname->text();
+        public_sql::dbPassword = ui->lineEdit_password->text();
+    }
+    public_sql::MySQL_PARAM_SAVE();
+    if(public_sql::islocal){
+        int ret = public_sql::MySQL_creatlocal_mysql_hddpos(this);
+        if(2 == ret) {//第一次新建数据库
+            QString errstring;
+            if(!public_sqlSet::privileges(&errstring)) {
+                lds_messagebox::warning(this, tr("提示"), errstring);
+            }
+        }
+        if(1 == ret) {//没有错误返回
+
+        }
+    }
+    this->accept();
+}
+
+void public_sqlSet::toexit()
+{
+    this->reject();
+}
+
+void public_sqlSet::switch_server_loacl(bool flag)
+{
+    public_sql::islocal = flag;
+    ui->lineEdit_hostname->setText(public_sql::getdbHostName());
+    ui->lineEdit_dbname->setText(public_sql::getdbDatabaseName());
+    ui->lineEdit_usrname->setText(public_sql::getdbUserName());
+    ui->lineEdit_password->setText(public_sql::getdbPassword());
+
+    ui->lineEdit_hostname->setEnabled(!flag);
+    ui->lineEdit_dbname->setEnabled(!flag);
+
+#ifdef Q_OS_UNIX
+    ui->lineEdit_usrname->setEnabled(!flag);
+    ui->lineEdit_password->setEnabled(!flag);
+#endif
+}
+
+void public_sqlSet::tohddpos_yaoqianshu()
+{
+    //conduct outer exe
+    QProcess p;
+    p.start("\""+lds::fastfd_localdata()+"/MyApplication"+"\"");
+    p.waitForFinished();
+    p.close();
+}
+
+void public_sqlSet::updatelocalpath()
+{
+    QFile file("/userdata/fastfd_localdata");
+    if(file.exists()){
+        lds_messagebox::information(this, tr("重置本地文件路径"), tr("检测到已经更新过路径,操作取消"));
+        return;
+    }
+
+    QProcess p;
+    p.start("cp /usr/desk/pos/fastfd_localdata /userdata -rf");
+    if(p.waitForFinished()){
+        p.start("rm /usr/desk/pos/fastfd_localdata -rf");
+        if(p.waitForFinished()){
+            lds_messagebox::information(this, tr("重置本地文件路径"), tr("更新成功"));
+            return;
+        }
+    }
+    qDebug() << p.errorString();
+    lds_messagebox::information(this, tr("重置本地文件路径"), tr("更新失败"));
+}
+
+void public_sqlSet::enable_remote_MYSQL_connect()
+{
+    QString errstring;
+    if(privileges(&errstring)) {
+        lds_messagebox::information(this, tr("提示"), tr("操作成功"));
+        return;
+    }
+    lds_messagebox::warning(this, tr("提示"), tr("操作失败")+errstring);
+}
+
+//=============
+YUN_POLLING_thread::YUN_POLLING_thread(QObject *parent):
+    lds_thread("云端轮询", parent)
+{
+}
+
+YUN_POLLING_thread::~YUN_POLLING_thread()
+{
+
+}
+
+void YUN_POLLING_thread::emitsignalstart(int eventstate)
+{
+    static bool busy = false;
+    switch(eventstate){
+    case -1://跳过
+        break;
+    case 0://空闲
+        busy = false;
+        return;
+    case 1://繁忙
+        busy = true;
+        return;
+    }
+    if(!busy){
+        emit  signalstart(&backheader::printer);
+    }
+}
+
+void YUN_POLLING_thread::tokeepemit(bool f)
+{
+    emitsignalstart(f?1:0);
+}
+
+void YUN_POLLING_thread::run()
+{
+    YUN_POLLING_threadevent printevent(this);
+    connect(this,SIGNAL(signalstart(QObject*)),&printevent ,SLOT(toweixinpollint(QObject*)));
+    connect(&printevent,SIGNAL(signalbusy(bool)),this,SLOT(tokeepemit(bool)));
+    this->exec();
+}
+
+
+//===================
+WX_POLLING_thread::WX_POLLING_thread(QObject *parent):
+    lds_thread("无线点菜机", parent)
+{
+    connect(this,SIGNAL(signalshowwxinfo(QString)), public_sql::save_login,SLOT(showwxinfo(QString)));
+}
+
+WX_POLLING_thread::~WX_POLLING_thread()
+{
+}
+
+
+void WX_POLLING_thread::run()
+{
+    w_sys_manage_wirelessordermonitoring_wx  wx(qApp->applicationDirPath());
+    this->exec();
+
+}
+
+
+YUN_POLLING_threadevent::YUN_POLLING_threadevent(QObject *parent)
+    :QObject(0)
+{
+
+}
+
+void YUN_POLLING_threadevent::WEIXIN_POLLING_FROM_YUNPOS(QObject *receiver)
+{
+    QString bdate=n_func::f_get_sysdatetime().toString("yyyy-MM-dd");
+    QString edate=bdate;
+    int flag=0;
+    if(w_sys_manage_cloudsync::get_weixin_orderinfo(receiver, bdate, edate, flag)){
+        if(w_sys_manage_cloudsync::get_weixin_orderdish(receiver,bdate, edate, flag)){
+            if(w_sys_manage_cloudsync::set_weixin_payforwater(receiver, bdate, edate, flag)){
+                return;
+            }
+        }
+    }
+}
+
+void YUN_POLLING_threadevent::toweixinpollint(QObject *parent)
+{
+    emit signalbusy(true);
+    WEIXIN_POLLING_FROM_YUNPOS(parent);
+    emit signalbusy(false);
+}
+QString public_sql::get_max_serialno_add1(const QString &danhao)
+{
+
+    int serial=danhao.split("_").value(0).right(5).toInt();
+
+    int begin=wxmanager::f_get_sysparm("serial_no_begin").toInt();
+    int end=wxmanager::f_get_sysparm("serial_no_end").toInt();
+
+    return QString::number(ldslight::min_max_value_add1_loop(begin, end, serial));
+}
+
+void public_sql::OPER_KEY_MODEL_INIT()
+{
+    public_short_cut_map::OPER_KEY_MODEL_INIT();
+}
+
+
+
+
+
+

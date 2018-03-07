@@ -1,0 +1,5 @@
+[w_rpt_report_dishsalereport-1]
+printtitle=true
+printtail=true
+vheaderlist=0, 1, 2, 7, 8
+vheaderwidthlist=17, 5, 8, 5, 5, 5, 5, 10, 7, 5
