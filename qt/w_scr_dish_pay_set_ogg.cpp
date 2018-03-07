@@ -38,7 +38,7 @@ void w_scr_dish_pay_set_ogg::tocancel()
 
 void w_scr_dish_pay_set_ogg::totest()
 {
-    double v = random() % 100000000;
+    double v = qrand() % 100000000;
     double value = v / 100.00 + 0.11;
     public_sql::save_login->ogg_play_polling->play("userdata/settings/ogg/", value);
 }

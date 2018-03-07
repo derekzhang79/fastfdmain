@@ -206,8 +206,6 @@
         <file>image/widgets_pic/radio_on_warn.png</file>
         <file>image/print_format/label_40x30_def.txt</file>
         <file>image/print_format/label_60x40_def.txt</file>
-        <file>table_pad.png</file>
-        <file>table_bg.png</file>
         <file>image/desk_preprint.png</file>
         <file>image/desk_order.png</file>
         <file>image/desk_inuse.png</file>
@@ -266,7 +264,6 @@
         <file>image/d3.png</file>
         <file>image/d4.png</file>
         <file>image/pig.png</file>
-        <file>saas_bg.png</file>
         <file>image/widgets_pic/radio_off_warn.png</file>
         <file>image/btn_icon/28.png</file>
         <file>image/btn_icon/27.png</file>
@@ -278,8 +275,6 @@
         <file>image/q3.png</file>
         <file>image/q4.png</file>
         <file>image/q5.png</file>
-        <file>2015121000954514.pem</file>
-        <file>ffef99.jpeg</file>
         <file>image/apple_check_off.png</file>
         <file>image/apple_check_on.png</file>
         <file>image/whiteq1.png</file>
@@ -349,5 +344,8 @@
         <file>image/p14.png</file>
         <file>image/p15.png</file>
         <file>image/p16.png</file>
+        <file>image/table_bg.png</file>
+        <file>image/table_pad.png</file>
+        <file>image/2015121000954514.pem</file>
     </qresource>
 </RCC>
