@@ -66,6 +66,8 @@ public:
 
     static QString getBillTypeDesc(billType type);
     static const QMap<QString, QVariant> &billTypeDescMap();
+
+    static bool qr_code_can_order(const QString &ch_tableno, QString &errstring);
 public:
     w_scr_dish_main_qr_code(const QString &ch_tableno, const QrCodeMasterList &master_list, const QString &currentOrderSn, QWidget *parent = 0);
     w_scr_dish_main_qr_code(const QString &ch_billno_R, QWidget *parent = 0);

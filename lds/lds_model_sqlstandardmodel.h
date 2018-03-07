@@ -34,6 +34,7 @@ public:
     static void setItemData(QStandardItem *item, const QVariant &value, int role = Qt::DisplayRole);
 
     void enableNoItemFlags();
+    void restoreOriginFlagsSet();
 private:
     QString select_str_arg;
     QString select_str;
@@ -42,6 +43,7 @@ private:
 
     int selectcount;
     lds_bool_default_false bNoItemFlags;
+    lds_bool_default_false bOriginFlagsSet;
 };
 
 #endif // LDS_MODEL_SQLSTANDARDMODEL_H

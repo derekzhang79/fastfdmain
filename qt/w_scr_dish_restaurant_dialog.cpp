@@ -259,7 +259,7 @@ bool w_scr_dish_restaurant_dialog::tablemessageOrder(QWidget *parent, const QStr
             goto end;
         }
     }
-    //二维码点单
+    //二维码点单，为处理的需要继续付清
     if(ch_billno.startsWith("R"))
     {
         //!等待
@@ -286,39 +286,32 @@ bool w_scr_dish_restaurant_dialog::tablemessageOrder(QWidget *parent, const QStr
         return true;
     }
     //4
-    //有未处理订单
-    qr_code_order_list = w_scr_dish_main_qr_code::qr_code_master_get(ch_tableno, w_scr_dish_main_qr_code::billTypeAVailable);
-    if(qr_code_order_list.count() > 0) {
-        //分单
-        if(div_sqr != 0) {
-            if(1 == lds_messagebox::warning(parent, MESSAGE_TITLE_VOID, tr("分单和导入订单无法同时进行"),  tr("继续操作"), tr("退出"))) {
+    //有未处理订单,未开启的话不启用
+    if(n_func::f_get_sysparm_q(query,"qr_code_order_mode","0") == "1") {
+        qr_code_order_list = w_scr_dish_main_qr_code::qr_code_master_get(ch_tableno, w_scr_dish_main_qr_code::billTypeAVailable);
+        if(qr_code_order_list.count() > 0) {
+            //分单
+            if(div_sqr != 0) {
+                if(1 == lds_messagebox::warning(parent, MESSAGE_TITLE_VOID, tr("分单和导入订单无法同时进行"),  tr("继续操作"), tr("退出"))) {
+                    goto end;
+                }
+                goto orderdish;
+            }
+            if(false == w_scr_dish_main_qr_code::qr_code_can_order(ch_tableno, errstring)) {
+                if(1 == lds_messagebox::warning(parent, MESSAGE_TITLE_VOID, tr("订单无法导入") + "\n" + errstring,  tr("继续操作"), tr("退出"))) {
+                    goto end;
+                }
+                goto orderdish;
+            }
+            if(1 == lds_messagebox::question(parent, MESSAGE_TITLE_VOID, tr("有订单未处理, 是否导入"), tr("是"), tr("否"))) {
                 goto end;
             }
-            goto orderdish;
-        }
-        //已经分单
-        if(restraurantDelegate::ch_billno_is_div(lds_query::selectValue(QString(" select " + restraurantDelegate::sql_ch_billnos + " from cey_bt_table where ch_tableno = '%1' ").arg(ch_tableno)).toString())) {
-            if(1 == lds_messagebox::warning(parent, MESSAGE_TITLE_VOID, tr("餐桌已经分单") + "," + tr("订单无法导入"),  tr("继续操作"), tr("退出"))) {
-                goto end;
+            w_scr_dish_main_qr_code dialog(ch_tableno, qr_code_order_list, currentOrderSn, parent);
+            if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()) {
+                return true;
             }
-            goto orderdish;
+            return false;
         }
-        //点菜记录
-        if(lds_query::selectValue(QString(" select count(0) from cey_u_orderdish where ch_billno = '%1' ")
-                                  .arg(ch_billno)).toInt() > 0) {
-            if(1 == lds_messagebox::warning(parent, MESSAGE_TITLE_VOID, tr("已有点菜记录") + "," + tr("订单无法导入"),  tr("继续操作"), tr("退出"))) {
-                goto end;
-            }
-            goto orderdish;
-        }
-        if(1 == lds_messagebox::question(parent, MESSAGE_TITLE_VOID, tr("有订单未处理, 是否导入"), tr("是"), tr("否"))) {
-            goto end;
-        }
-        w_scr_dish_main_qr_code dialog(ch_tableno, qr_code_order_list, currentOrderSn, parent);
-        if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()) {
-            return true;
-        }
-        return false;
     }
     //~有未处理订单
 
@@ -703,7 +696,8 @@ void w_scr_dish_restaurant_dialog::torefresh()
     ui->pushButton_print_state_hheader->setVisible(lds::terminalCode == kitchen_service_terminal);
 #endif
     //二维码点单查询
-    if(qr_code_polliing_running == 0) {
+    if(n_func::f_get_sysparm_q(query,"qr_code_order_mode","0") == "1"
+            && qr_code_polliing_running == 0) {
         qr_code_request("1");//新订单
         qr_code_request("3");//支付成功
     }
@@ -1861,6 +1855,10 @@ void w_scr_dish_restaurant_dialog::toqr_code_polling(QNetworkReply *reply)
 
 void w_scr_dish_restaurant_dialog::toqr_code_order_over_view()
 {
+    if(n_func::f_get_sysparm("qr_code_order_mode","0") == "0") {
+        lds_messagebox::warning(this, MESSAGE_TITLE_VOID, tr("请在软件后台启用此功能"));
+        return;
+    }
     w_scr_dish_main_qr_code_over_view dialog(this);
     if(public_sql::GoRestaurantOrder == lds_roundeddialog_rect_align(&dialog).exec()) {
         totablemessageOrder(dialog.order_ch_tableno(), //餐桌

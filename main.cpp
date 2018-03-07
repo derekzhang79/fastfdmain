@@ -269,10 +269,6 @@ int main(int argc, char *argv[])
         p->start("\"" + cmd + "\"");
 #endif
     }
-
-    lds_query query;
-    query.execSelect(" select * from a");
-    qDebug() << query.recordError();
     return public_sql::save_login->exec();
     bool ret = app.exec();
     return ret;

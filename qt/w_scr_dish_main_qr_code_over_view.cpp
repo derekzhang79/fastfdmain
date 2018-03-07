@@ -15,7 +15,7 @@ w_scr_dish_main_qr_code_over_view::w_scr_dish_main_qr_code_over_view(QWidget *pa
     ui->setupUi(this);
     order_row = -1;
     standmodel = new lds_model_sqlstandardmodel(this);
-    standmodel->setHorizontalHeaderLabels(QStringList() << "ch_tableno" << "vch_tablename" << "ch_billno" << "ch_state" << "do");
+    standmodel->setHorizontalHeaderLabels(QStringList() << "vch_memo" << "ch_tableno" << "vch_tablename" << "ch_billno" << "ch_state" << "do");
     ui->tableView->setTransferHheader();
     ui->tableView->setModel(standmodel);
     ui->tableView->verticalHeader()->setDefaultSectionSize(50);
@@ -57,7 +57,9 @@ void w_scr_dish_main_qr_code_over_view::refresh()
         standmodel->removeRow(row);
     }
     //3
+    QString errstring;
     QMap<QByteArray, QByteArray> map;
+
     map.insert("state", "3");//已付款
     w_scr_dish_main_qr_code::QrCodeMasterList  masters = w_scr_dish_main_qr_code::qr_code_master_get(map);
 
@@ -66,19 +68,24 @@ void w_scr_dish_main_qr_code_over_view::refresh()
     while(query.next()) {
         bool sn_has_paid = w_scr_dish_main_qr_code::indexof(masters, query.recordValue("vch_qr_code_sn").toString()) >= 0;
         QString sn = query.recordValue("vch_qr_code_sn").toString();
+        QString ch_tableno = query.recordValue("ch_tableno").toString();
 
         //filter
         if(!sn.contains(ui->lineEdit_sn->text()))  continue;
 
         standmodel->appendRow(QList<QStandardItem*>()
+                              << lds_model_sqlstandardmodel::newItem(tr("空闲"))
                               << lds_model_sqlstandardmodel::newItem(sn)
-                              << lds_model_sqlstandardmodel::newItem(query.recordValue("ch_tableno"))
+                              << lds_model_sqlstandardmodel::newItem(ch_tableno)
                               << lds_model_sqlstandardmodel::newItem(query.recordValue("vch_tablename"))
                               << lds_model_sqlstandardmodel::newItem("")
                               << lds_model_sqlstandardmodel::newItem(tr("无操作"))
                               );
         int currow = standmodel->rowCount() - 1;
         ui->tableView->setIndexWidget(standmodel->index(currow, standmodel->fieldIndex("ch_state")), sn_has_paid ? billpayBtn(currow) : billwaitpayBtn(currow));
+        if(false == w_scr_dish_main_qr_code::qr_code_can_order(ch_tableno, errstring)) {
+            standmodel->model_data_set(currow, "vch_memo", errstring);
+        }
     }
 
     //1
@@ -93,6 +100,7 @@ void w_scr_dish_main_qr_code_over_view::refresh()
             if(!sn.contains(ui->lineEdit_sn->text()))  continue;
 
             standmodel->appendRow(QList<QStandardItem*>()
+                                  << lds_model_sqlstandardmodel::newItem(tr("空闲"))
                                   << lds_model_sqlstandardmodel::newItem(sn)
                                   << lds_model_sqlstandardmodel::newItem(masters[k].tableNo)
                                   << lds_model_sqlstandardmodel::newItem(lds_query::selectValue(QString(" select vch_tablename from cey_bt_table where ch_tableno = '%1' ").arg(masters[k].tableNo)))
@@ -102,6 +110,9 @@ void w_scr_dish_main_qr_code_over_view::refresh()
             int currow = standmodel->rowCount() - 1;
             ui->tableView->setIndexWidget(standmodel->index(currow, standmodel->fieldIndex("ch_state")), billgetBtn(currow));
             ui->tableView->setIndexWidget(standmodel->index(currow, standmodel->fieldIndex("do")), billcancelBtn(currow));
+            if(false == w_scr_dish_main_qr_code::qr_code_can_order(masters[k].tableNo, errstring)) {
+                standmodel->model_data_set(currow, "vch_memo", errstring);
+            }
         }
     }
     ui->tableView->resizeColumnToContents(standmodel->fieldIndex("ch_billno"));

@@ -328,6 +328,28 @@ const QMap<QString, QVariant> &w_scr_dish_main_qr_code::billTypeDescMap()
     return map;
 }
 
+bool w_scr_dish_main_qr_code::qr_code_can_order(const QString &ch_tableno, QString &errstring)
+{
+    lds_query query;
+    query.execSelect(QString(" select " + restraurantDelegate::sql_ch_billnos + ", ch_billno from cey_bt_table where ch_tableno = '%1' ").arg(ch_tableno));
+    query.next();
+    QString ch_billnos = query.recordValue(0).toString();
+    QString ch_billno = query.recordValue(1).toString();
+
+    //已经分单
+    if(restraurantDelegate::ch_billno_is_div(ch_billnos)) {
+        errstring = tr("餐桌已经分单");
+        return false;
+    }
+    //点菜记录
+    if(lds_query::selectValue(QString(" select count(0) from cey_u_orderdish where ch_billno = '%1' ")
+                              .arg(ch_billno)).toInt() > 0) {
+        errstring = tr("已有点菜记录");
+        return false;
+    }
+    return true;
+}
+
 w_scr_dish_main_qr_code::w_scr_dish_main_qr_code(const QString &ch_tableno, const w_scr_dish_main_qr_code::QrCodeMasterList &master_list, const QString &currentOrderSn, QWidget *parent) :  QDialog(parent),
     ui(new Ui::w_scr_dish_main_qr_code)
 {

@@ -11,6 +11,9 @@ lds_model_sqlstandardmodel::lds_model_sqlstandardmodel(QObject *parent)
 
 Qt::ItemFlags lds_model_sqlstandardmodel::flags(const QModelIndex &index) const
 {
+    if(bOriginFlagsSet) {
+        return QStandardItemModel::flags(index);
+    }
     if(bNoItemFlags) {
         return Qt::NoItemFlags;
     }
@@ -158,4 +161,9 @@ void lds_model_sqlstandardmodel::setItemData(QStandardItem *item, const QVariant
 void lds_model_sqlstandardmodel::enableNoItemFlags()
 {
     bNoItemFlags = true;
+}
+
+void lds_model_sqlstandardmodel::restoreOriginFlagsSet()
+{
+    bOriginFlagsSet = true;
 }
