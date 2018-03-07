@@ -177,7 +177,7 @@ void w_scr_dish_main_table_800x600::loadData()
 
     connect(tablemodel, SIGNAL(signals_num_total_change(QString,QString)), this, SLOT(to_switch_print_reprint()));
     ///特殊的整合，特殊会切换为收起
-    connect(ui->pushButton_function,SIGNAL(clicked()),this,SLOT(tofunctionshow()));
+//    connect(ui->pushButton_function,SIGNAL(clicked()),this,SLOT(tofunctionshow()));
     ///~特殊的整合，特殊会切换为收起
     ///
     ui->label_vch_waiter->setText(tablemodel->get_cey_u_table_value(ch_billno, "vch_waiter"));
@@ -187,6 +187,7 @@ void w_scr_dish_main_table_800x600::loadData()
     table_format_index = lds::sysconf->value("w_scr_dish_main_table_800x600/table_format_index", 0).toInt();
     member_format_index = lds::sysconf->value("w_scr_dish_main_table_800x600/member_format_index", 0).toInt();
     changeTableShowFormat();
+
 }
 
 void w_scr_dish_main_table_800x600::updatequitDish(const QModelIndex &current, const QModelIndex &)
@@ -218,14 +219,14 @@ void w_scr_dish_main_table_800x600::tofunctionshow()
         ui->frame_function->setParent(dialog);
         ui->frame_function->move(2, 2);
         ui->frame_function->setFixedSize(116, 196);
-        ui->pushButton_function->setCheckable(true);
+//        ui->pushButton_function->setCheckable(true);
         menu_special = new lds_roundeddialog_rect_pop(dialog, this, dialog->windowFlags() | Qt::FramelessWindowHint);
-        menu_special->setbgColor(QColor("transparent"));
+        menu_special->setbgColor(QColor(1,1,1,1));//window 全透明会真的穿透
     }
 
-    menu_special->updatePos(ui->pushButton_function);
+//    menu_special->updatePos(ui->pushButton_function);
     menu_special->exec();
-    ui->pushButton_function->setChecked(false);
+//    ui->pushButton_function->setChecked(false);
 }
 
 void w_scr_dish_main_table_800x600::tochangeTableShowFormat()

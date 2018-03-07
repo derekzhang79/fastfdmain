@@ -6,12 +6,16 @@ public_pushbuton_likerb_pur::public_pushbuton_likerb_pur(QWidget *parent) :
     QPushButton(parent)
 {
     isexclusive = true;
+    isnormalbtn = false;
     do_longpress = new lds_record_do_longpress(this);
     connect(do_longpress, SIGNAL(timeout()), this, SIGNAL(timeout()));
 }
 
 void public_pushbuton_likerb_pur::setChecked1(bool f)
 {
+    if(isnormalbtn) {
+        return;
+    }
     this->setDown(f);
     scan_all_except_self();
 }
@@ -23,7 +27,12 @@ void public_pushbuton_likerb_pur::setExclusive(bool isexclusive)
 
 void public_pushbuton_likerb_pur::enableLongPress(bool flag)
 {
-        do_longpress->setEnable(flag);
+    do_longpress->setEnable(flag);
+}
+
+void public_pushbuton_likerb_pur::setNormalBtn(bool flag)
+{
+    isnormalbtn = flag;
 }
 
 void public_pushbuton_likerb_pur::mousePressEvent(QMouseEvent *e)
@@ -31,6 +40,10 @@ void public_pushbuton_likerb_pur::mousePressEvent(QMouseEvent *e)
     bool isd = isDown();
 
     QPushButton::mousePressEvent(e);
+    if(isnormalbtn) {
+        return;
+    }
+
     do_longpress->start(e->pos());
 
     if(false == isd) {//release
@@ -45,6 +58,10 @@ void public_pushbuton_likerb_pur::mousePressEvent(QMouseEvent *e)
 
 void public_pushbuton_likerb_pur::mouseReleaseEvent(QMouseEvent *e)
 {
+    if(isnormalbtn) {
+        QPushButton::mouseReleaseEvent(e);
+        return;
+    }
     do_longpress->isprepared_stop();
 }
 
@@ -55,12 +72,27 @@ void public_pushbuton_likerb_pur::mouseMoveEvent(QMouseEvent *e)
 
 void public_pushbuton_likerb_pur::focusInEvent(QFocusEvent *e)
 {
-
+    //do nothing
 }
 
 void public_pushbuton_likerb_pur::focusOutEvent(QFocusEvent *e)
 {
+    //do nothing
+}
 
+void public_pushbuton_likerb_pur::resizeEvent(QResizeEvent *event)
+{
+    QPushButton::resizeEvent(event);
+//    int w = qMin(this->width(), this->height());
+//    setIconSize(QSize(w, w));
+//    qDebug() << __LINE__ << __FUNCTION__ << this->objectName() << this->text() << "size:" << w <<w;
+}
+
+void public_pushbuton_likerb_pur::paintEvent(QPaintEvent *e)
+{
+    QPushButton::paintEvent(e);
+
+    qDebug() << __LINE__ << __FUNCTION__ << this->objectName() << this->text() <<  "size:" << this->iconSize();
 }
 
 
@@ -106,4 +138,9 @@ public_pushbuton_likerb_pur *public_pushbuton_likerb_pur_auto_release::current_c
         }
     }
     return 0;
+}
+
+public_pushbuton_likerb_pur_false::public_pushbuton_likerb_pur_false(QWidget *parent)
+{
+    setNormalBtn(true);
 }

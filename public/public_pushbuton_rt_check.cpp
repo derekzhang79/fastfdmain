@@ -64,3 +64,10 @@ void public_pushbuton_rt_check::paintEvent(QPaintEvent *e)
         p.drawPixmap(QRect(width()-pg.width(), 0, pg.width(), pg.height()), pg);
     }
 }
+
+void public_pushbuton_rt_check::resizeEvent(QResizeEvent *event)
+{
+    lds_toolbar_button::resizeEvent(event);
+//    int w = qMin(this->width(), this->height()) * 2 / 3;
+//    setIconSize(QSize(w, w));
+}

@@ -19,7 +19,9 @@ public:
     void set_rt_checked(const vch_membernoData &m);
     void set_rt_checked(bool f);
     void set_rt_checked_warn(bool f);
+protected:
     void paintEvent(QPaintEvent *e);
+    void resizeEvent(QResizeEvent *event);
 private:
     QString get_m_belong_state();
     QString m_belong_state;

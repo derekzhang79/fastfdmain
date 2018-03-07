@@ -81,11 +81,18 @@ w_scr_dish_restaurant_dialog::w_scr_dish_restaurant_dialog(QWidget *parent) :
     if(lds::MAIN_WINDOW_SIZE.width()==1920){
         left_space = 200;
     }
+    int frame_area_margin = 9;
+
     ui->tableView_3->verticalHeader()->setDefaultSectionSize(20);
     ui->tableView_3->setFixedHeight(20 * restraurantDelegate::getTablestatelist().count());
     ui->frame_area->setGeometry(0, lds::QT_FIXED_HEIGHT_BOTTOM, left_space, lds::MAIN_WINDOW_SIZE.height() - lds::QT_FIXED_HEIGHT_BOTTOM);
+    ui->frame_area->layout()->setContentsMargins(frame_area_margin, frame_area_margin, frame_area_margin, frame_area_margin);
 
-    ui->pushButton_table->setGeometry(1, 1, (ui->widget_switch->width() - 4) / 3, ui->widget_switch->height() - 2);
+    ui->widget_switch->setFixedHeight(29);
+    if(lds::MAIN_WINDOW_SIZE.width()==1920){
+        ui->widget_switch->setFixedHeight(40);
+    }
+    ui->pushButton_table->setGeometry(1, 1, (ui->frame_area->width() - frame_area_margin * 2 - 4) / 3, ui->widget_switch->height()  - 2);
     ui->pushButton_list->setGeometry(ui->pushButton_table->geometry().right() + 2, 1, ui->pushButton_table->width(), ui->pushButton_table->height());
     ui->pushButton_map->setGeometry(ui->pushButton_list->geometry().right() + 2, 1, ui->pushButton_table->width(), ui->pushButton_table->height());
 #ifdef QT_DEBUG
@@ -634,17 +641,17 @@ void w_scr_dish_restaurant_dialog::torefresh()
     modeltable->sql =
             "select y.vch_tablename, y.ch_tableno, "+
             restraurantDelegate::sql_ch_billnos+ " as `ch_billnos`,"
-            "ifnull((select int_person from cey_u_table where cey_u_table.ch_billno = y.ch_billno), y.int_person) as `int_person`,"
-            "(select num_cost from cey_u_table where cey_u_table.ch_billno = y.ch_billno) as `num_cost`,"
-            "x.ch_tableno  AS `order_tableno`,"
-            "time(x.dt_come) AS `order_time`, "
-            " '' as `check` ,"
-            " '' as `disable`,"
-            "(select group_concat(distinct(cey_bt_table_bar.int_div_id)) from cey_bt_table_bar where cey_bt_table_bar.ch_tableno = y.ch_tableno) as `div_bar`  "
+                                                 "ifnull((select int_person from cey_u_table where cey_u_table.ch_billno = y.ch_billno), y.int_person) as `int_person`,"
+                                                 "(select num_cost from cey_u_table where cey_u_table.ch_billno = y.ch_billno) as `num_cost`,"
+                                                 "x.ch_tableno  AS `order_tableno`,"
+                                                 "time(x.dt_come) AS `order_time`, "
+                                                 " '' as `check` ,"
+                                                 " '' as `disable`,"
+                                                 "(select group_concat(distinct(cey_bt_table_bar.int_div_id)) from cey_bt_table_bar where cey_bt_table_bar.ch_tableno = y.ch_tableno) as `div_bar`  "
 
-            "from cey_bt_table y LEFT JOIN (SELECT b.ch_tableno, a.dt_come "
-            "FROM cybr_book_master a,cybr_book_table b WHERE a.ch_bookno = b.ch_bookno AND a.dt_come > '%1' "
-            "AND a.dt_come <= '%2' AND ifnull(a.ch_state,'') <> 'Y' ) x ON y.ch_tableno = x.ch_tableno"
+                                                 "from cey_bt_table y LEFT JOIN (SELECT b.ch_tableno, a.dt_come "
+                                                 "FROM cybr_book_master a,cybr_book_table b WHERE a.ch_bookno = b.ch_bookno AND a.dt_come > '%1' "
+                                                 "AND a.dt_come <= '%2' AND ifnull(a.ch_state,'') <> 'Y' ) x ON y.ch_tableno = x.ch_tableno"
             ;
     modeltable->sql = modeltable->sql
             .arg(dt.toString("yyyy-MM-dd hh:mm:ss"))
@@ -727,9 +734,7 @@ void w_scr_dish_restaurant_dialog::torefresh_data()
     //load data
     if(mode == 0//经典模式
             || (mode == 1 && ui->graphicsView->is_edit_mode()) ) {//地图模式且是编辑状态
-        QModelIndex index = ui->tableView_ch_tableno->currentIndex();
         ui->tableView_ch_tableno->m->refreshcur();
-        //        ui->tableView_ch_tableno->setCurrentIndex(index);
         ui->tableView_ch_areano->m->refreshcur();
     }
 
@@ -975,7 +980,7 @@ void w_scr_dish_restaurant_dialog::toLongPressTableAreaNew(const QModelIndex &in
         dialog.setWindowTitle(tr("修改"));
     }
     lds_roundeddialog_rect_align(&dialog).exec();
-    torefresh_data();
+    ui->tableView_ch_areano->m->refreshcur();
 }
 
 void w_scr_dish_restaurant_dialog::to_mode_list_dish_update(const QModelIndex &index)

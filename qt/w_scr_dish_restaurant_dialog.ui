@@ -963,9 +963,6 @@
     </rect>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,1,0,0,0,0">
-    <property name="topMargin">
-     <number>9</number>
-    </property>
     <item>
      <widget class="ftableview" name="tableView_ch_areano">
       <property name="outer_stylesheet" stdset="0">
@@ -1023,12 +1020,6 @@
     </item>
     <item>
      <widget class="QWidget" name="widget_switch" native="true">
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>29</height>
-       </size>
-      </property>
       <property name="maximumSize">
        <size>
         <width>16777215</width>

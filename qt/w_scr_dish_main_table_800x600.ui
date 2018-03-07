@@ -1090,11 +1090,6 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>lds_lineedit</class>
-   <extends>QLineEdit</extends>
-   <header>lds_lineedit.h</header>
-  </customwidget>
-  <customwidget>
    <class>ftableview</class>
    <extends>QTableView</extends>
    <header>ftableview.h</header>
@@ -1109,6 +1104,11 @@
    <class>lds_pushbutton_wrap</class>
    <extends>QPushButton</extends>
    <header>lds_pushbutton_wrap.h</header>
+  </customwidget>
+  <customwidget>
+   <class>lds_lineedit</class>
+   <extends>QLineEdit</extends>
+   <header>lds_lineedit.h</header>
   </customwidget>
   <customwidget>
    <class>public_pushbutton_pay</class>

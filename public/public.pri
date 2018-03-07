@@ -26,7 +26,6 @@ HEADERS += \
     $$PWD/ftableview_standmodel_sql.h \
     $$PWD/ftableview_standmodel_virtual.h \
     $$PWD/public_pushbutton_pay.h \
-    $$PWD/public_pushbuton_likerb.h \
     $$PWD/public_toolbuton_wrap.h \
     $$PWD/public_toolbuton_wrap_v.h \
     $$PWD/ftableview_standmodel_sql_table.h \
@@ -70,7 +69,6 @@ HEADERS += \
     $$PWD/public_pushbuton_number.h \
     $$PWD/fexpandmain_table.h \
     $$PWD/restraurantdelegate_list_table.h \
-    public/public_pushbuton_likechk_pur.h \
 
 SOURCES += \
     $$PWD/frontviewdialog_autoexpand.cpp \
@@ -97,7 +95,6 @@ SOURCES += \
     $$PWD/ftableview_standmodel_sql.cpp \
     $$PWD/ftableview_standmodel_virtual.cpp \
     $$PWD/public_pushbutton_pay.cpp \
-    $$PWD/public_pushbuton_likerb.cpp \
     $$PWD/public_toolbuton_wrap.cpp \
     $$PWD/public_toolbuton_wrap_v.cpp \
     $$PWD/ftableview_standmodel_sql_table.cpp \
@@ -141,7 +138,6 @@ SOURCES += \
     $$PWD/public_pushbuton_number.cpp \
     $$PWD/fexpandmain_table.cpp \
     $$PWD/restraurantdelegate_list_table.cpp \
-    public/public_pushbuton_likechk_pur.cpp \
 
 FORMS += \
     $$PWD/lds_chartdialog.ui \
