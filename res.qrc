@@ -347,5 +347,6 @@
         <file>image/table_bg.png</file>
         <file>image/table_pad.png</file>
         <file>image/2015121000954514.pem</file>
+        <file>image/desk_qr_code.png</file>
     </qresource>
 </RCC>
