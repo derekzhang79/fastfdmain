@@ -77,7 +77,7 @@ table_management_pad_control::table_management_pad_control(QGraphicsItem *parent
     setFlags(/*ItemIsMovable |*/ ItemIsSelectable | ItemIsFocusable);
     setZValue(1);
     app_item = 0;
-    pg= QPixmap(":/table_pad.png");
+    pg= QPixmap(":/image/table_pad.png");
 }
 
 table_management_pad_control::~table_management_pad_control()

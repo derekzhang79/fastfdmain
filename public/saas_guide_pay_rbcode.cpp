@@ -25,7 +25,7 @@ saas_guide_pay_rbcode::saas_guide_pay_rbcode(double fee, QWidget *parent) :
     arg0.sign_type=alipay_help::sign_type_SHA1;//固定
     arg0.timestamp_not_null= timestamp_not_null;
     arg0.version_not_null="1.0";
-    arg0.rsa_private_key_data_not_null = alipay_help::alipay_private_key_add_start_line(":/2015121000954514.pem");
+    arg0.rsa_private_key_data_not_null = alipay_help::alipay_private_key_add_start_line(":/image/2015121000954514.pem");
     //    //http://www.yqspos.com/CateSystem/market/receiveAppAuthCode.mobile?org_code=123456001
     //    QString orgCode = n_func::f_get_sysparm("orgCode");
     //    if(!orgCode.isEmpty())

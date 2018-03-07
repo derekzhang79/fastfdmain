@@ -4,7 +4,7 @@
 #include <QtDebug>
 #include "public_sql.h"
 
-#ifdef QT_NEW_SYSTEM
+#ifdef QT_PHONON_SUPPORT
 Phonon::MediaObject lds_ogg_play::mobject;
 #endif
 QList<QStringList> lds_ogg_play::current_playlist;
@@ -16,9 +16,8 @@ lds_ogg_play::lds_ogg_play()
 
 bool lds_ogg_play::play(const QString &ogg_path, double value, int decimals, QString *errstring)
 {
-#ifdef QT_NEW_SYSTEM
+#ifdef QT_PHONON_SUPPORT
     if(false == mobject.isValid()) {
-#endif
         QString message = "MediaObject not is valid";
         if(errstring) *errstring = message;
         QMetaObject::invokeMethod(public_sql::save_login_object(),
@@ -28,11 +27,7 @@ bool lds_ogg_play::play(const QString &ogg_path, double value, int decimals, QSt
                                   Q_ARG(QString, "pay audio")
                                   );
         return false;
-#ifdef QT_NEW_SYSTEM
     }
-#endif
-    //
-#ifdef QT_NEW_SYSTEM
     static bool f = true;
     if(f) {
         lds_ogg_play::ogg_path = ogg_path;

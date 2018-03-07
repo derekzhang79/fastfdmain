@@ -245,7 +245,7 @@ QGraphicsScene *table_management_graphicsview::curScene()
     if(this->scene() == 0) {
         QGraphicsScene *scene = new QGraphicsScene(this);
         setScene(scene);
-        setStyleSheet("background:url(:/table_bg.png); padding:-2px;border:0px;");
+        setStyleSheet("background:url(:/image/table_bg.png); padding:-2px;border:0px;");
         add_pad_once(new table_management_pad);
     }
     return this->scene();

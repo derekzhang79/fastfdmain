@@ -7,9 +7,13 @@
 DEFINES += QT_NEW_SYSTEM
 INCLUDEPATH += $$PWD/inputnew/
 
-QT       += core gui sql network xml concurrent svg phonon
+QT       += core gui sql network xml concurrent svg
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+lessThan(QT_MAJOR_VERSION, 5){
+ QT += phonon
+ DEFINES += QT_PHONON_SUPPORT
+}
 
 TARGET = SoftPos
 
