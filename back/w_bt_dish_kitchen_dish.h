@@ -36,7 +36,7 @@ public:
 public slots:
     virtual void toExec() ;
 private :
-    void kitchen_key(lds_query_db &query, const QString &key);
+    void kitchen_key(lds_query &query, const QString &key);
     bool kitchen_update_transaction(lds_query_db &query_local, lds_query_db &query, int int_kitchen_section, int int_indexbox, int key_state);
     bool kitchen_update_transaction(lds_query_db &query, const QString &ch_billno, int key_state);
     void kitchen_make_ins(const w_bt_dish::kitchenState key_state,

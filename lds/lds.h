@@ -12,6 +12,7 @@
 #endif
 #include <QElapsedTimer>
 #include <QMutex>
+#include <QNetworkAccessManager>
 
 #define MAX_DOUBLE_VALUE  1000000000
 #define MIN_DOUBLE_VALUE  -1000000000
@@ -158,6 +159,7 @@ public:
     static void setwflagFrameless(QWidget *widget);
 
     static QSettings *sysconf;
+    static QNetworkAccessManager *sysmanager;
 
     static QColor static_color_light(const QString &c, double light_0_3, int a = 255);//0 1 2 3 原 亮 很亮 最亮
     static QString appName();

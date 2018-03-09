@@ -523,6 +523,7 @@ void w_sys_manage::q_bt_put_piece_cey_bt_paymode(qrtVariantPairList &key_value_l
     key_value_list << qrtVariantPair("vch_arg5", cJSON_help::getcJSONvalue(pItem,"pmVchARG5"));
     key_value_list << qrtVariantPair("vch_arg6", cJSON_help::getcJSONvalue(pItem,"pmVchARG6"));
     key_value_list << qrtVariantPair("vch_arg7", cJSON_help::getcJSONvalue(pItem,"pmVchARG7"));
+
 }
 
 

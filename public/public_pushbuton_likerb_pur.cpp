@@ -92,7 +92,7 @@ void public_pushbuton_likerb_pur::paintEvent(QPaintEvent *e)
 {
     QPushButton::paintEvent(e);
 
-    qDebug() << __LINE__ << __FUNCTION__ << this->objectName() << this->text() <<  "size:" << this->iconSize();
+//    qDebug() << __LINE__ << __FUNCTION__ << this->objectName() << this->text() <<  "size:" << this->iconSize();
 }
 
 

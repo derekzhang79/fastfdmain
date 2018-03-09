@@ -45,7 +45,6 @@
 #include "w_bt_dish_kitchen_dish_state.h"
 #include "lds_int.h"
 #include "w_sys_manage_outer_settings.h"
-#include "w_sys_manage_cloudsync_rb_order.h"
 #include "w_rpt_report_frame_dishsalerank.h"
 #include "colordialog.h"
 #include "saas_pay_detail.h"
@@ -77,7 +76,6 @@
 #include "w_bt_dish_cookset.h"
 #include "w_scr_dish_main_table_800x600.h"
 #include "w_scr_dish_phone_pay.h"
-#include "w_sys_manage_cloudsync_rb_order.h"
 #include "w_scr_dish_main_qr_code.h"
 
 int main(int argc, char *argv[])
@@ -90,7 +88,9 @@ int main(int argc, char *argv[])
 #endif
     //配置文件
     QSettings conf(lds::localdataPath+"/fastfd.ini", QSettings::IniFormat);
+    QNetworkAccessManager manager;
     lds::sysconf = &conf;
+    lds::sysmanager = &manager;
     //~配置文件
     public_sql::    syssetcode();                           //设置编码
     public_sql::    syswindowicon();
@@ -269,6 +269,7 @@ int main(int argc, char *argv[])
         p->start("\"" + cmd + "\"");
 #endif
     }
+
     return public_sql::save_login->exec();
     bool ret = app.exec();
     return ret;

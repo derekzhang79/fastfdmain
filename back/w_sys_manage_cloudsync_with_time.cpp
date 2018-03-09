@@ -414,6 +414,7 @@ void w_sys_manage_cloudsync_with_time_running::sql_check()
 
 int w_sys_manage_cloudsync_with_time_running::q_bt_check_state_and_del(QObject *parent_nozero_trigger_slot, const QString &tablename, cJSON *pItem, int sqr, QString *where_sql)
 {
+    qDebug() << __LINE__;
     lds_query query;
     int state = cJSON_help::getcJSONvalue(pItem,"state").toInt();
 
@@ -424,16 +425,20 @@ int w_sys_manage_cloudsync_with_time_running::q_bt_check_state_and_del(QObject *
     QString vch_sqltablename_key_name = query.recordValue("vch_sqltablename_key_name").toString();
     QString vch_sqltablename_yun_key_name = query.recordValue("vch_sqltablename_yun_key_name").toString();
     QString arg2 = QString(" %1='%2' ").arg(vch_sqltablename_key_name).arg(cJSON_help::getcJSONvalue(pItem,vch_sqltablename_yun_key_name.toLocal8Bit().data()).toString());
+    qDebug() << __LINE__ << tablename << arg2;
     if(vch_sqltablename_key_name.contains(",")) {
         arg2 = " ";
         QStringList  list0 = vch_sqltablename_key_name.split(",", QString::SkipEmptyParts);
         QStringList  list1 = vch_sqltablename_yun_key_name.split(",", QString::SkipEmptyParts);
         for(int sqr = 0; sqr < list0.count(); sqr++) {
-            arg2  += list0[sqr] + "=" +cJSON_help::getcJSONvalue(pItem, list1[sqr].toLocal8Bit().data()).toString()+ " and ";
+            arg2  += QString(" %1 = '%2' ").arg(list0[sqr], cJSON_help::getcJSONvalue(pItem, list1[sqr].toLocal8Bit().data()).toString()) + " and ";
+            qDebug() << __LINE__ << tablename << arg2;
         }
         arg2.chop(5);
+        qDebug() << __LINE__ << tablename << arg2;
     }
     if(where_sql) *where_sql = arg2;
+    qDebug() << __LINE__ << tablename << arg2;
 
     //同步删除
     if( state == -1) {//删除
@@ -441,10 +446,12 @@ int w_sys_manage_cloudsync_with_time_running::q_bt_check_state_and_del(QObject *
                                                                             Q_ARG(QString, QString("%1-%2-%3").arg("更新本地-删除" ).arg(sqr+1).arg(tablename))
                                                                             );
         if(!query.execDelete(tablename, arg2)) {
+            qDebug() << __LINE__ << tablename << arg2;
             QObject *o=0;
             o->children();
         }
     }
+    qDebug() << __LINE__;
     return state;
 }
 
@@ -765,9 +772,13 @@ bool w_sys_manage_cloudsync_with_time_running::q_bt_put_table_cey(QObject *paren
                 o->children();
             }
             QString sql_where;
+            qDebug() << __LINE__;
             if(q_bt_check_state_and_del(parent_nozero_trigger_slot, tablename, pItem, k,  &sql_where) == 0) {
+                qDebug() << __LINE__;
                 qrtVariantPairList key_value_list;
+                qDebug() << __LINE__;
                 q_bt_put_piece_(tablename, key_value_list, pItem);
+                qDebug() << __LINE__;
                 //check existed
                 query2.execSelect(QString("select %1 from %2 where ").arg(key).arg(tablename) + sql_where);
                 if(query2.next()){
@@ -1752,19 +1763,19 @@ void w_sys_manage_cloudsync_with_time_running::data_run(cloudFlags f)
             return;
         }
         //更新组号
-        query.execUpdate("cey_bt_dish", "ch_groupno", "ch_dishno", " ifnull(ch_groupno, '') = '' ");
+        query.execUpdate("cey_bt_dish", "ch_groupno", qrtFunc("ch_dishno"), " ifnull(ch_groupno, '') = '' ");
 
-        //更新付款方式
-        query.execSelect("select ch_paymodeno from cey_bt_paymode where ch_paymodeno = 'AA' ");
-        if(!query.next()) query.execInsert("cey_bt_paymode", "ch_paymodeno, vch_paymodename, ch_incomeflag, vch_arg4", "'AA', '移动支付' , 'Y' , 'N'", ",");
-        query.execSelect("select ch_paymodeno from cey_bt_paymode where ch_paymodeno = 'ZZ' ");
-        if(!query.next()) query.execInsert("cey_bt_paymode", "ch_paymodeno, vch_paymodename, ch_incomeflag, vch_arg4", "'ZZ', '优惠' , 'Y' , 'N'", ",");
-        query.execSelect("select ch_paymodeno from cey_bt_paymode where ch_paymodeno = '11' ");
-        if(!query.next()) query.execInsert("cey_bt_paymode", "ch_paymodeno, vch_paymodename, ch_incomeflag, vch_arg4", "'11', '会员挂账' , 'Y' , 'N'", ",");
-        query.execSelect("select ch_paymodeno from cey_bt_paymode where ch_paymodeno = '06' ");
-        if(!query.next()) query.execInsert("cey_bt_paymode", "ch_paymodeno, vch_paymodename, ch_incomeflag, vch_arg4", "'06', '支付宝支付' , 'Y' , 'N' ", ",");
-        query.execUpdate("cey_bt_paymode", "vch_arg4", "N", "");
-        query.execUpdate("cey_bt_paymode", "vch_paymodename", tr("优惠"), "ch_paymodeno = 'ZZ' ");
+//        更新付款方式
+//        query.execSelect("select ch_paymodeno from cey_bt_paymode where ch_paymodeno = 'AA' ");
+//        if(!query.next()) query.execInsert("cey_bt_paymode", "ch_paymodeno, vch_paymodename, ch_incomeflag, vch_arg4", "'AA', '移动支付' , 'Y' , 'N'", ",");
+//        query.execSelect("select ch_paymodeno from cey_bt_paymode where ch_paymodeno = 'ZZ' ");
+//        if(!query.next()) query.execInsert("cey_bt_paymode", "ch_paymodeno, vch_paymodename, ch_incomeflag, vch_arg4", "'ZZ', '优惠' , 'Y' , 'N'", ",");
+//        query.execSelect("select ch_paymodeno from cey_bt_paymode where ch_paymodeno = '11' ");
+//        if(!query.next()) query.execInsert("cey_bt_paymode", "ch_paymodeno, vch_paymodename, ch_incomeflag, vch_arg4", "'11', '会员挂账' , 'Y' , 'N'", ",");
+//        query.execSelect("select ch_paymodeno from cey_bt_paymode where ch_paymodeno = '06' ");
+//        if(!query.next()) query.execInsert("cey_bt_paymode", "ch_paymodeno, vch_paymodename, ch_incomeflag, vch_arg4", "'06', '支付宝支付' , 'Y' , 'N' ", ",");
+//        query.execUpdate("cey_bt_paymode", "vch_arg4", "N", "");
+//        query.execUpdate("cey_bt_paymode", "vch_paymodename", tr("优惠"), "ch_paymodeno = 'ZZ' ");
 
 
         //更新数据库上传状态

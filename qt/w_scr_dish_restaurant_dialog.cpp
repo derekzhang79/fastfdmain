@@ -67,8 +67,8 @@ w_scr_dish_restaurant_dialog::w_scr_dish_restaurant_dialog(QWidget *parent) :
     resize(lds::MAIN_WINDOW_SIZE);
     ordertable_msg_loop = -1;//第一次进入为-1， 确保不会出现二次弹窗
 
-    network_manager = new QNetworkAccessManager(this);
-    qr_code_polliing_running = 0;
+    qr_code_polliing_count = -1;//第一次不刷先新
+    qr_code_polling_has_pop = false;
     //====================
 
     ui->pushButton_map_model_edit_and_save->setFocusPolicy(Qt::NoFocus);
@@ -150,8 +150,8 @@ w_scr_dish_restaurant_dialog::w_scr_dish_restaurant_dialog(QWidget *parent) :
     connect(ui->tableView_list_table, SIGNAL(double_clicked(QModelIndex)), this, SLOT(totablemessage(QModelIndex)));
     connect(public_sql::save_login_object(), SIGNAL(signal_TelNoComing(QString)), this, SLOT(toTelComing(QString)));
 
-    connect(public_sql::save_login,SIGNAL(signalrestaurantupdate()), this,SLOT(torefresh()));
-    connect(public_sql::save_login,SIGNAL(signalrestaurantupdate(int,int)),this,SLOT(widget_going_run(int,int)));
+    connect(public_sql::save_login,SIGNAL(signalrestaurantupdate(int,int)),this,SLOT(torefresh(int,int)));
+//    connect(public_sql::save_login,SIGNAL(signalrestaurantupdate(int,int)),this,SLOT(widget_going_run(int,int)));
     connect(public_sql::save_login, SIGNAL(signal_kitchen_print_state(QString,uchar)), this,SLOT(update_print_name_id_state(QString,uchar)));
     connect(public_sql::save_login, SIGNAL(signal_kitchen_print_error(QString)), this,SLOT(update_print_name_id_error(QString)));
 
@@ -165,7 +165,7 @@ w_scr_dish_restaurant_dialog::w_scr_dish_restaurant_dialog(QWidget *parent) :
     connect(ui->tableView_ch_areano,SIGNAL(signalclickNew(QModelIndex)),this,SLOT(toLongPressTableAreaNew(QModelIndex)));
     connect(ui->tableView_ch_areano,SIGNAL(timeout(QModelIndex)),this,SLOT(toLongPressTableAreaNew(QModelIndex)));
 
-    connect(network_manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(toqr_code_polling(QNetworkReply *)));
+    connect(lds::sysmanager, SIGNAL(finished(QNetworkReply*)), this, SLOT(toqr_code_polling(QNetworkReply *)));
     connect(ui->pushButton_qr_code_order_over_view, SIGNAL(clicked()), this, SLOT(toqr_code_order_over_view()));
 
     ui->tableView_list_dish->setTransferHheader();
@@ -280,7 +280,11 @@ bool w_scr_dish_restaurant_dialog::tablemessageOrder(QWidget *parent, const QStr
                     lds_query::selectValue(QString(" select vch_qr_code_sn from cey_u_table where ch_billno = '%1' ").arg(ch_billno)).toString(),
                     qr_code_pay_data)) {
             if(w_scr_dish_main_qr_code::qr_code_bill_do_pay_transaction(ch_tableno, ch_billno, qr_code_pay_data, errstring)) {
-                lds_messagebox::information(parent, MESSAGE_TITLE_VOID, tr("二维码点单") + "\n" + tr("本单已支付"));
+                lds_messagebox::information(parent, MESSAGE_TITLE_VOID, tr("二维码点单") + "\n" + tr("本单已支付") + "\n" +
+                                            tr("餐桌") + ":" +ch_tableno+ "\n"  +
+                                            tr("总计") + ":" + QString().sprintf("%.02f", qr_code_pay_data.mount) + "\n"  +
+                                            tr("支付宝") + ":" + QString().sprintf("%.02f", qr_code_pay_data.alipay) + "\n"  +
+                                            tr("微信") + ":" + QString().sprintf("%.02f", qr_code_pay_data.wechatpay));
                 return true;
             }
             lds_messagebox::warning(parent, MESSAGE_TITLE_VOID, errstring);
@@ -501,14 +505,13 @@ void w_scr_dish_restaurant_dialog::toFirstGoIn()
     }
 
 
-    torefresh();
+    torefresh(0, 0);// cur >= total时才会刷新
     restaurant_mode_select();
     retranslateView();
 }
 
 void w_scr_dish_restaurant_dialog::tocanceldesk(const QString &ch_tableno)
 {
-
     lds_query query;
     QString errstring;
     QString ch_billnos;
@@ -630,28 +633,39 @@ end:
 }
 
 //锁台的将不参与刷新
-void w_scr_dish_restaurant_dialog::torefresh()
+void w_scr_dish_restaurant_dialog::torefresh(int cur, int total)
 {
     if(ui->graphicsView->is_edit_mode()) {
         return;
     }
+    //其他按钮
+    if(ui->pushButton_set->isDown()) return;
+    //经理管理
+    if(ui->pushButton_other->isDown()) return;
+
+    widget_going_run(cur, total);
+
+    //进度条
+    if(cur <  total) return;
+
+    //refresh data
     lds_query query;
     //时间同步更新
     QDateTime dt = n_func::f_get_sysdatetime();
     modeltable->sql =
             "select y.vch_tablename, y.ch_tableno, "+
             restraurantDelegate::sql_ch_billnos+ " as `ch_billnos`,"
-                                                 "ifnull((select int_person from cey_u_table where cey_u_table.ch_billno = y.ch_billno), y.int_person) as `int_person`,"
-                                                 "(select num_cost from cey_u_table where cey_u_table.ch_billno = y.ch_billno) as `num_cost`,"
-                                                 "x.ch_tableno  AS `order_tableno`,"
-                                                 "time(x.dt_come) AS `order_time`, "
-                                                 " '' as `check` ,"
-                                                 " '' as `disable`,"
-                                                 "(select group_concat(distinct(cey_bt_table_bar.int_div_id)) from cey_bt_table_bar where cey_bt_table_bar.ch_tableno = y.ch_tableno) as `div_bar`  "
+            "ifnull((select int_person from cey_u_table where cey_u_table.ch_billno = y.ch_billno), y.int_person) as `int_person`,"
+            "(select num_cost from cey_u_table where cey_u_table.ch_billno = y.ch_billno) as `num_cost`,"
+            "x.ch_tableno  AS `order_tableno`,"
+            "time(x.dt_come) AS `order_time`, "
+            " '' as `check` ,"
+            " '' as `disable`,"
+            "(select group_concat(distinct(cey_bt_table_bar.int_div_id)) from cey_bt_table_bar where cey_bt_table_bar.ch_tableno = y.ch_tableno) as `div_bar`  "
 
-                                                 "from cey_bt_table y LEFT JOIN (SELECT b.ch_tableno, a.dt_come "
-                                                 "FROM cybr_book_master a,cybr_book_table b WHERE a.ch_bookno = b.ch_bookno AND a.dt_come > '%1' "
-                                                 "AND a.dt_come <= '%2' AND ifnull(a.ch_state,'') <> 'Y' ) x ON y.ch_tableno = x.ch_tableno"
+            "from cey_bt_table y LEFT JOIN (SELECT b.ch_tableno, a.dt_come "
+            "FROM cybr_book_master a,cybr_book_table b WHERE a.ch_bookno = b.ch_bookno AND a.dt_come > '%1' "
+            "AND a.dt_come <= '%2' AND ifnull(a.ch_state,'') <> 'Y' ) x ON y.ch_tableno = x.ch_tableno"
             ;
     modeltable->sql = modeltable->sql
             .arg(dt.toString("yyyy-MM-dd hh:mm:ss"))
@@ -703,8 +717,16 @@ void w_scr_dish_restaurant_dialog::torefresh()
     ui->pushButton_print_state_hheader->setVisible(lds::terminalCode == kitchen_service_terminal);
 #endif
     //二维码点单查询
+    //第一次刷新
+    if(qr_code_polliing_count == -1) {
+        qr_code_polliing_count = 0;
+        return;
+    }
+    //二维码点餐
     if(n_func::f_get_sysparm_q(query,"qr_code_order_mode","0") == "1"
-            && qr_code_polliing_running == 0) {
+            && qr_code_polliing_count  % 4 == 0) {//最大次数4，新订单请求、已支付请求，新订单响应、已支付响应
+        qr_code_polliing_count = 0;
+        qr_code_polling_has_pop = false;
         qr_code_request("1");//新订单
         qr_code_request("3");//支付成功
     }
@@ -712,6 +734,7 @@ void w_scr_dish_restaurant_dialog::torefresh()
 
 void w_scr_dish_restaurant_dialog::torefresh_data()
 {
+    qDebug() << __LINE__<< __FUNCTION__;
     //refresh
     if(false == restaurant_model_is_init){//初始化
         restaurant_model_is_init = true;//只初始一次
@@ -1156,6 +1179,8 @@ bool w_scr_dish_restaurant_dialog::table_opera_when_btn_is_down(const QString &c
 
 void w_scr_dish_restaurant_dialog::qr_code_request(const QString &state)
 {
+    qr_code_polliing_count ++;
+
     QNetworkRequest request;
     request.setHeader(QNetworkRequest::ContentTypeHeader,  "application/json;charset=utf-8");
 #ifdef QT_DEBUG
@@ -1165,7 +1190,7 @@ void w_scr_dish_restaurant_dialog::qr_code_request(const QString &state)
 #endif
     request.setRawHeader("state",  state.toLocal8Bit().data());//新订单
     request.setUrl(QUrl("http://115.28.155.165/qryqs/dishREST/queryUserOrders-rest"));
-    network_manager->get(request);
+    lds::sysmanager->get(request);
 }
 
 void w_scr_dish_restaurant_dialog::toswitchback()
@@ -1456,7 +1481,6 @@ void w_scr_dish_restaurant_dialog::tosysguqing()
     }
 
     w_scr_dish_guqing_report dialog(this);
-    dialog.resize(lds::MAIN_WINDOW_SIZE);
     dialog.setWindowTitle(_TEXT_SLOT(this));
     lds_roundeddialog_rect_align(&dialog).exec();
 }
@@ -1818,44 +1842,47 @@ void w_scr_dish_restaurant_dialog::toWine()
 
 void w_scr_dish_restaurant_dialog::toqr_code_polling(QNetworkReply *reply)
 {
-    qr_code_polliing_running++;
-    qr_code_polliing_running = qr_code_polliing_running % 2;
+    qr_code_polliing_count++;
     //
-    bool has_new_order = false;
+    if(qr_code_polling_has_pop) // won`t to check qr_code data when qr_code_polling_has_pop is true
+        return;
+
     lds_query query;
     int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     QByteArray readall = reply->readAll();
-    if(200 == httpStatus) {
-        cJSONHttpData root = cJSON_Parse(readall.data());
-        cJSON *array = cJSON_help::getcJSON(root.json, "data");
-        for(int k = 0; k < cJSON_help::array_count(array); k ++) {
-            cJSON *item = cJSON_GetArrayItem(array, k);
-            cJSON_help::getcJSONvalue(item, "tableNo").toString();
-            //3 已支付
-            if("3" == cJSON_help::getcJSONvalue(item, "state").toString()) {
-                query.execSelect(QString("select a.vch_qr_code_sn from cey_u_table a, cey_bt_table b where a.ch_billno = b.ch_billno and a.vch_qr_code_sn = '%1'; ")
-                                 .arg(cJSON_help::getcJSONvalue(item, "sn").toString()));
-                if(query.next()) {//有新的订单需要支付
-                    has_new_order = true;
-                    break;
-                }
+    if(200 != httpStatus) {
+        qr_code_polling_has_pop = true;
+        lds_messagebox::warning(this, MESSAGE_TITLE_VOID,  tr("二维码点餐") + "\n" + tr("无法获取相关数据"));
+        return;
+    }
+    cJSONHttpData root = cJSON_Parse(readall.data());
+    cJSON *array = cJSON_help::getcJSON(root.json, "data");
+    for(int k = 0; k < cJSON_help::array_count(array); k ++) {
+        cJSON *item = cJSON_GetArrayItem(array, k);
+        cJSON_help::getcJSONvalue(item, "tableNo").toString();
+        //3 已支付
+        if("3" == cJSON_help::getcJSONvalue(item, "state").toString()) {
+            query.execSelect(QString("select a.vch_qr_code_sn from cey_u_table a, cey_bt_table b where a.ch_billno = b.ch_billno and a.vch_qr_code_sn = '%1'; ")
+                             .arg(cJSON_help::getcJSONvalue(item, "sn").toString()));
+            if(query.next()) {//有新的订单需要支付
+                qr_code_polling_has_pop = true;
+                break;
             }
-            //1新订单
-            if("1" == cJSON_help::getcJSONvalue(item, "state").toString()) {
-                query.execSelect(QString("select a.vch_qr_code_sn from cey_u_table a, cey_bt_table b where a.ch_billno = b.ch_billno and a.vch_qr_code_sn = '%1'; ")
-                                 .arg(cJSON_help::getcJSONvalue(item, "sn").toString()));
-                if(!query.next()) {//有新的订单未处理
-                    has_new_order = true;
-                    break;
-                }
+        }
+        //1新订单
+        if("1" == cJSON_help::getcJSONvalue(item, "state").toString()) {
+            query.execSelect(QString("select a.vch_qr_code_sn from cey_u_table a, cey_bt_table b where a.ch_billno = b.ch_billno and a.vch_qr_code_sn = '%1'; ")
+                             .arg(cJSON_help::getcJSONvalue(item, "sn").toString()));
+            if(!query.next()) {//有新的订单未处理
+                qr_code_polling_has_pop = true;
+                break;
             }
         }
     }
 
-    if(has_new_order) {
+    if(qr_code_polling_has_pop) {
         toqr_code_order_over_view();
     }
-    qDebug() << __FUNCTION__ << readall;
 }
 
 void w_scr_dish_restaurant_dialog::toqr_code_order_over_view()
@@ -1871,6 +1898,7 @@ void w_scr_dish_restaurant_dialog::toqr_code_order_over_view()
                             false, //isRequestOrder
                             dialog.order_sn()//当前sn
                             );
+        torefresh_data();
     }
 }
 

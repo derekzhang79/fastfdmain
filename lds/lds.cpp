@@ -54,6 +54,7 @@ QString lds::FONT_NUM_Family;
 QString lds::FONT_DEFAULT_Family;
 QString lds::SYS_LANGUAGE;
 QSettings * lds::sysconf = 0;
+QNetworkAccessManager * lds::sysmanager = 0;
 
 const QString lds::LOCAL_TERMINAL_INDEX_FF;
 const QString lds::localdataPath =
@@ -261,9 +262,6 @@ void lds::setTterminalCode(const QString &tcode)
     } else {
         c =  "AA"   +tcode;
     }
-#ifdef QT_DEBUG
-    c = "AA80310092516736C";
-#endif
     *(QString *)&terminalCode = c;
     qDebug() << "terminalCode:" << terminalCode;
 }
@@ -508,8 +506,8 @@ QString lds::getHardWareID_unique()
     //#endif
     ////////////
 #ifdef QT_DEBUG
+    return "FA1101";
     //    return "";
-    ////    return "FA1101";
     //    return "81020232410800C";
     return "AA80310092516736C";
 #endif

@@ -27,7 +27,6 @@
 #include "lds_model_sqltablemodel_delegate_com.h"
 #include "printer_normal.h"
 #include "w_bt_dish_kitchen_dish_state.h"
-#include "w_sys_manage_cloudsync_rb_order.h"
 #include "w_scr_dish_language_switch_set.h"
 #include "btnlanguageswicth.h"
 #include "w_sys_manage_outer_pay_set.h"
@@ -95,17 +94,17 @@ void w_bt_dish_kitchen_dish::initView()
     ui->tableView->setEditTriggers(QTableView::AllEditTriggers);
     ui->tableView->setModel(tablemodel);
     ui->tableView->justShowColumns(QList<int>()
-                               << tablemodel->fieldIndex("ch_dishno")<< tablemodel->fieldIndex("vch_dishname")
-                               << tablemodel->fieldIndex("ch_kitchen_print_flag")
-                               << tablemodel->fieldIndex("vch_kitchen_print_id1")
-                               << tablemodel->fieldIndex("vch_kitchen_print_id2")
-                               << tablemodel->fieldIndex("vch_kitchen_print_id3")
+                                   << tablemodel->fieldIndex("ch_dishno")<< tablemodel->fieldIndex("vch_dishname")
+                                   << tablemodel->fieldIndex("ch_kitchen_print_flag")
+                                   << tablemodel->fieldIndex("vch_kitchen_print_id1")
+                                   << tablemodel->fieldIndex("vch_kitchen_print_id2")
+                                   << tablemodel->fieldIndex("vch_kitchen_print_id3")
 
-                               << tablemodel->fieldIndex("ch_kitchen_out_flag")
-                               << tablemodel->fieldIndex("vch_kitchen_out_id1")
-                               << tablemodel->fieldIndex("vch_kitchen_out_id2")
-                               << tablemodel->fieldIndex("vch_kitchen_out_id3")
-                               );
+                                   << tablemodel->fieldIndex("ch_kitchen_out_flag")
+                                   << tablemodel->fieldIndex("vch_kitchen_out_id1")
+                                   << tablemodel->fieldIndex("vch_kitchen_out_id2")
+                                   << tablemodel->fieldIndex("vch_kitchen_out_id3")
+                                   );
     tablemodel->tablename_kvmap_insert("cey_bt_kitchen_plan", "vch_plan_id", "vch_plan_name", "", true, lds_model_sqltablemodel::SELECT_AUTO_REFRESH_KEY);
     lds_model_sqltablemodel_delegate_com *d = new lds_model_sqltablemodel_delegate_com(this, tablemodel->tablename_kvmap_d("cey_bt_kitchen_plan"));
 
@@ -449,21 +448,14 @@ void w_bt_dish_kitchen_dish_thread_event::toExec()
         if(state == w_bt_dish::KITCHEN_FINISH) continue;
         if(state == w_bt_dish::KITCHEN_VOID) continue;
 
-        {
-            lds_query_db query(lds_thread::getThreadDbAndOpen());
-            kitchen_key(query, w_bt_dish::k2o3_stae2hex_str(w_bt_dish::kitchenState(state)));
-        }
-        {
-            //二维码点餐
-            lds_query_db query(w_sys_manage_cloudsync_rb_order::create_database());
-            kitchen_key(query, w_bt_dish::k2o3_stae2hex_str(w_bt_dish::kitchenState(state)));
-        }
+        lds_query query;
+        kitchen_key(query, w_bt_dish::k2o3_stae2hex_str(w_bt_dish::kitchenState(state)));
     }
 
     tablemodel.delPointer();
 }
 
-void w_bt_dish_kitchen_dish_thread_event::kitchen_key(lds_query_db &query, const QString &key)
+void w_bt_dish_kitchen_dish_thread_event::kitchen_key(lds_query &query, const QString &key)
 {
     //
     if(!QSqlDatabase::connectionNames().contains("w_bt_dish_kitchen_dish_thread_event")){
@@ -687,7 +679,7 @@ int_print_id_TRY://vch_plan_id
                     const QString int_id_print = int_print_id;
                     if(!ch_areaNo_print.isEmpty()
                             && !ch_areaNo_table.isEmpty()
-                            && ch_areaNo_table != ch_areaNo_print) {// 如果打印机的区域号不为空、打印机的区域号和餐桌区域号不匹配则跳过                                    if(!kitchen_update_transaction(query_local, query, x, int_indexbox, key_state)) {
+                            && ch_areaNo_table != ch_areaNo_print) {// 如果打印机的区域号不为空、打印机的区域号和餐桌区域号不匹配则跳过
                         if(!kitchen_update_transaction(query_local, query, x, int_indexbox, key_state)) {
 
                         }
@@ -794,12 +786,6 @@ indexbox_END:
 
 bool w_bt_dish_kitchen_dish_thread_event::kitchen_update_transaction(lds_query_db &query_local, lds_query_db &query, int int_kitchen_section, int int_indexbox, int key_state)
 {
-    // "------------厨打:"<<__LINE__ ;
-    // __LINE__ << "transaction";
-    if("rb_order" == query.db.connectionName()) {
-        return true;
-    }
-
     QString vch_plan_k3o3_state ;
     QString int_flowid;
     QString tablename;
@@ -1526,8 +1512,8 @@ bool w_bt_dish_kitchen_dish_param::insert_sql_objectname(const QString &objectna
             vch_value = ui->kt_fmt_table_fmts->itemData(0).toString();//默认
         }
         query.execInsert("cey_sys_parameter",qrtVariantPairList()
-                                << qrtVariantPair("vch_parameter", objectname)
-                                << qrtVariantPair("vch_value", vch_value));
+                         << qrtVariantPair("vch_parameter", objectname)
+                         << qrtVariantPair("vch_value", vch_value));
     }
     return true;
 }

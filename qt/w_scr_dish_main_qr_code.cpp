@@ -25,16 +25,16 @@ int w_scr_dish_main_qr_code::indexof(const w_scr_dish_main_qr_code::QrCodeMaster
     return -1;
 }
 
-w_scr_dish_main_qr_code::QrCodeMasterList w_scr_dish_main_qr_code::qr_code_master_get(const QString &ch_tableno, w_scr_dish_main_qr_code::billType state)
+w_scr_dish_main_qr_code::QrCodeMasterList w_scr_dish_main_qr_code::qr_code_master_get(const QString &ch_tableno, w_scr_dish_main_qr_code::billType state, bool *ok)
 {
     QMap<QByteArray, QByteArray> map;
     map.insert("tableNo", ch_tableno.toLocal8Bit());
     map.insert("state", QByteArray::number(state));
 
-    return qr_code_master_get(map);
+    return qr_code_master_get(map, ok);
 }
 
-w_scr_dish_main_qr_code::QrCodeMasterList w_scr_dish_main_qr_code::qr_code_master_get(const QMap<QByteArray, QByteArray> &headmap)
+w_scr_dish_main_qr_code::QrCodeMasterList w_scr_dish_main_qr_code::qr_code_master_get(const QMap<QByteArray, QByteArray> &headmap, bool *ok)
 {
     w_scr_dish_main_qr_code::QrCodeMasterList qr_data_list;
     QNetworkAccessManager m;
@@ -55,8 +55,10 @@ w_scr_dish_main_qr_code::QrCodeMasterList w_scr_dish_main_qr_code::qr_code_maste
     reply = m.get(request);
     loop.exec();
 
+    if(ok) *ok = false;
     int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    if(200 == httpStatus) {
+    if(httpStatus == 200) {
+        if(ok) *ok = true;
         cJSONHttpData root = cJSON_Parse(reply->readAll().data());
         w_scr_dish_main_qr_code::QrCodeMaster qr_data;
         qr_data.orgName = cJSON_help::getcJSONvalue(root.json, "orgName").toString();
@@ -68,7 +70,6 @@ w_scr_dish_main_qr_code::QrCodeMasterList w_scr_dish_main_qr_code::qr_code_maste
             qr_data.sn = cJSON_help::getcJSONvalue(item, "sn").toString();
             qr_data.tableNo = cJSON_help::getcJSONvalue(item, "tableNo").toString();
             qr_data.state = billType(cJSON_help::getcJSONvalue(item, "state").toInt());
-
             qr_data_list << qr_data;
         }
     }
@@ -355,9 +356,6 @@ w_scr_dish_main_qr_code::w_scr_dish_main_qr_code(const QString &ch_tableno, cons
 {
     ui->setupUi(this);
     this->ch_tableno =ch_tableno;
-#ifdef QT_DEBUG
-    this->ch_tableno = "1002";
-#endif
     init();
 
     updatemaster(master_list, currentOrderSn);
@@ -580,11 +578,9 @@ void w_scr_dish_main_qr_code::toupdatedetail(int index)
         if(lds_query::selectValue(QString(" select ch_dishno from cey_bt_dish where ch_dishno = '%1' " ).arg(standmodel_detail->model_data(standmodel_detail->rowCount() - 1, "ch_dishno").toString())).isNull())
             standmodel_detail->model_data_set(standmodel_detail->rowCount() - 1, "ch_dishno", QColor("red"), Qt::TextColorRole);
         //ch_dishno null
-#ifdef QT_DEBUG
-#else
         if(lds_query::selectValue(QString(" select ch_dishno from cey_bt_dish where ch_dishno = '%1' " ).arg(d.dishNo)).isNull()) {
             standmodel_detail->model_data_set(standmodel_detail->rowCount() - 1, "ch_dishno", QColor("red"), Qt::TextColorRole);
-            if(1 == lds_messagebox::warning(this, MESSAGE_TITLE_VOID, tr("菜品不同步") + "\n" + d.dishNo, tr("数据同步"), tr("取消"))) {
+            if(1 == lds_messagebox::warning(this, MESSAGE_TITLE_VOID, tr("菜品") + d.dishNo + tr("不存在"), tr("数据同步"), tr("取消"))) {
                 standmodel_detail->removeRows(0, standmodel_detail->rowCount());
                 ui->label_state->setText(tr("菜品不同步"));
                 return;
@@ -595,7 +591,6 @@ void w_scr_dish_main_qr_code::toupdatedetail(int index)
                 continue;
             }
         }
-#endif
 
         //vch_print_memo
         QString vch_print_memo;
@@ -708,7 +703,7 @@ void w_scr_dish_main_qr_code::updatemaster(const w_scr_dish_main_qr_code::QrCode
     ui->label_orgName->setText(d.orgName);
     ui->label_date->setText(tr("下单时间") + ":" + d.date.toString("yyyy-MM-dd hh:mm:ss"));
     ui->label_bill_count->setText(tr("订单总数") + ":" + QString::number(ui->comboBox_master->count()));
-    ui->label_tableNo->setText(tr("桌台") + ":" + ch_tableno);
+    ui->label_tableNo->setText(tr("桌台") + ":" + d.tableNo);
 }
 
 void w_scr_dish_main_qr_code::updatemaster()
@@ -723,7 +718,8 @@ void w_scr_dish_main_qr_code::init()
     standmodel_detail->setHorizontalHeaderLabels(QStringList()  << "ch_dishno" << "num_num" << "num_price" << "vch_print_memo" << "num_total" << "ch_suitflag"<< "vch_operid");
 
     lds_model_sqltablemodel_delegate_com *ch_dishno_d = new lds_model_sqltablemodel_delegate_com(this, "cey_bt_dish", "ch_dishno", "vch_dishname");
-    ch_dishno_d->set_paint_transfer_default_value(tr("菜品不存在"));
+    //    ch_dishno_d->set_paint_transfer_default_value(tr("菜品不存在"));
+    ch_dishno_d->enable_empty_return_key();
     ui->tableView_detail->setModel(standmodel_detail);
     ui->tableView_detail->setTransferHheader();
     ui->tableView_detail->setItemDelegateForColumn(standmodel_detail->fieldIndex("ch_dishno"), ch_dishno_d);

@@ -107,7 +107,6 @@ HEADERS += \
     $$PWD/w_rpt_report_material_sale.h \
     $$PWD/w_rpt_report_frame_material_saleflow.h \
     $$PWD/w_st_good_input_select_dish.h \
-    $$PWD/w_sys_manage_cloudsync_rb_order.h \
     $$PWD/w_rpt_report_frame_business_summary.h \
     $$PWD/w_sys_manage_cloudsync_cloud2.h \
     $$PWD/w_sys_manage_outer_settings_label.h \
@@ -227,7 +226,6 @@ SOURCES += \
     $$PWD/w_rpt_report_material_sale.cpp \
     $$PWD/w_rpt_report_frame_material_saleflow.cpp \
     $$PWD/w_st_good_input_select_dish.cpp \
-    $$PWD/w_sys_manage_cloudsync_rb_order.cpp \
     $$PWD/w_rpt_report_frame_business_summary.cpp \
     $$PWD/w_sys_manage_cloudsync_cloud2.cpp \
     $$PWD/w_sys_manage_outer_settings_label.cpp \
@@ -347,7 +345,6 @@ FORMS += \
     $$PWD/w_rpt_report_material_sale.ui \
     $$PWD/w_rpt_report_frame_material_saleflow.ui \
     $$PWD/w_st_good_input_select_dish.ui \
-    $$PWD/w_sys_manage_cloudsync_rb_order.ui \
     $$PWD/w_rpt_report_frame_business_summary.ui \
     $$PWD/w_bt_dish_table_new2.ui \
     $$PWD/w_sys_manage_cloudsync_cloud2.ui \

@@ -3,3 +3,54 @@ cz
 123321
  /opt/qt-hddlinuxqt4/bin/qmake
 make -4
+
+QDBusConnection: session D-Bus connection created before QCoreApplication. Application may misbehave.
+dogID: "FA80310092516736C" 
+terminalCode: "FA1101" 
+139 buddyResize 
+gs_soft_version: "V4.019.180227" 
+软件版本号: "V4.019.180227" 
+139 buddyResize 
+139 buddyResize 
+getThreadDbAndCreat addDatabase dbname: "qt_sql_default_connection" 1 
+139 buddyResize 
+tran_saction 0 
+com_mit 1 
+139 buddyResize 
+../fastfdmain/public/public_logindialog.cpp 287 
+~lds_roundeddialog_rect_align 
+174 "qt_sql_default_connection" 
+737 torefresh_data 
+737 torefresh_data 
+w_scr_dish_main_qr_code_over_view 
+139 buddyResize 
+139 buddyResize 
+delete json
+delete json
+139 buddyResize 
+delete json
+delete json
+~lds_roundeddialog_rect_align 
+~lds_roundeddialog_rect_align 
+libusb: 0.000000 error [__read_sysfs_attr] open /sys/bus/usb/devices/1-1/busnum failed errno=24
+libusb: 0.000032 error [__read_sysfs_attr] open /sys/bus/usb/devices/2-1/busnum failed errno=24
+libusb: 0.000038 error [__read_sysfs_attr] open /sys/bus/usb/devices/usb1/busnum failed errno=24
+libusb: 0.000043 error [__read_sysfs_attr] open /sys/bus/usb/devices/usb2/busnum failed errno=24
+libusb: 0.000047 error [__read_sysfs_attr] open /sys/bus/usb/devices/1-1.2/busnum failed errno=24
+
+(SoftPos:10042): Gtk-WARNING **: Error loading theme icon 'dialog-question' for stock: 加载用来载入图像的模块失败：/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so：/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so: 无法打开共享对象文件: 打开的文件过多
+
+(SoftPos:10042): Gtk-WARNING **: Error loading theme icon 'dialog-question' for stock: 加载用来载入图像的模块失败：/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so：/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so: 无法打开共享对象文件: 打开的文件过多
+lds_msgbox 
+139 buddyResize 
+
+(SoftPos:10042): Gtk-WARNING **: Error loading theme icon 'dialog-question' for stock: 加载用来载入图像的模块失败：/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so：/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so: 无法打开共享对象文件: 打开的文件过多
+~lds_roundeddialog_rect_align 
+139 buddyResize 
+139 buddyResize 
+QProcessPrivate::createPipe: Cannot create pipe 0x7fb808007b18: Too many open files
+
+(SoftPos:10042): GLib-ERROR **: Creating pipes for GWakeup: 打开的文件过多
+
+The program has unexpectedly finished.
+/home/cz/视频/build-fastfdmain_new-Qt_4_8_6_qt4-Debug/SoftPos crashed

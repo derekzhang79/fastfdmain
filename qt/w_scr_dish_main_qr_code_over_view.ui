@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>500</width>
+    <width>600</width>
     <height>492</height>
    </rect>
   </property>
@@ -16,16 +16,6 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>单号</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLineEdit" name="lineEdit_sn"/>
-     </item>
      <item>
       <widget class="lds_toolbar_button" name="pushButton_up">
        <property name="text">
@@ -40,6 +30,16 @@
       <widget class="lds_toolbar_button" name="pushButton_down">
        <property name="text">
         <string>下一页</string>
+       </property>
+       <property name="outer_stylesheet" stdset="0">
+        <string>pushbutton</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="lds_toolbar_button" name="pushButton_refresh">
+       <property name="text">
+        <string>刷新</string>
        </property>
        <property name="outer_stylesheet" stdset="0">
         <string>pushbutton</string>
@@ -72,6 +72,47 @@
     </layout>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,1,1,1,0">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>检索</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_sn">
+       <property name="placeholderText">
+        <string>单号</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_tableNo">
+       <property name="placeholderText">
+        <string>餐桌编号</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="lds_ComboBox" name="comboBox_state"/>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>225</width>
+         <height>27</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
     <widget class="lds_tableView" name="tableView"/>
    </item>
   </layout>
@@ -87,7 +128,16 @@
    <extends>QTableView</extends>
    <header>lds_tableview.h</header>
   </customwidget>
+  <customwidget>
+   <class>lds_ComboBox</class>
+   <extends>QComboBox</extends>
+   <header>lds_combobox.h</header>
+  </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>pushButton_exit</tabstop>
+  <tabstop>tableView</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

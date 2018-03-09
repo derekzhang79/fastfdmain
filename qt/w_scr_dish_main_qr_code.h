@@ -49,8 +49,8 @@ public:
         double wechatpay;
     };
 
-    static QrCodeMasterList qr_code_master_get(const QString &ch_tableno, billType state);
-    static QrCodeMasterList qr_code_master_get(const QMap<QByteArray, QByteArray> &headmap);
+    static QrCodeMasterList qr_code_master_get(const QString &ch_tableno, billType state, bool *ok = 0);
+    static QrCodeMasterList qr_code_master_get(const QMap<QByteArray, QByteArray> &headmap, bool *ok = 0);
     static void qr_code_list_print(const QrCodeMasterList &list);
 
     static QrCodeDetailList qr_code_detail_get(const QString &sn);

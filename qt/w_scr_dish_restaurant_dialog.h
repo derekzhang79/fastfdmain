@@ -49,7 +49,7 @@ public:
                                   );
 public slots:
     void toFirstGoIn();
-    void torefresh();
+    void torefresh(int cur, int total);
     void torefresh_data();
 
 protected slots:
@@ -161,9 +161,9 @@ protected:
     lds_bool_default_false restaurant_model_is_init;
 
     QSet<QString> set_print_name_id_error;
-
     QWidget pushButton_map_model_edit_and_save_popup;
-    QNetworkAccessManager *network_manager;
-    int qr_code_polliing_running;//0x1 0x2 0x4
+    // qr_code_polliing
+    int qr_code_polliing_count;//
+    bool qr_code_polling_has_pop;
 };
 #endif // W_SCR_DISH_RESTAURANT_DIALOG_H

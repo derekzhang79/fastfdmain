@@ -193,7 +193,6 @@
    </item>
   </layout>
   <zorder>frame</zorder>
-  <zorder>tabWidget</zorder>
   <zorder>tableView</zorder>
  </widget>
  <customwidgets>

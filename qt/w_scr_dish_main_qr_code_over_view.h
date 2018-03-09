@@ -26,10 +26,9 @@ public slots:
     void toexit();
 private:
     QPushButton * billpayBtn(int row);
-    QPushButton * billwaitpayBtn(int row);
     QPushButton * billgetBtn(int row);
     QPushButton * billcancelBtn(int row);
-    void set_model_btext_hide_button(int row, int column);
+    void hideButton(int row, int column);
 private:
     Ui::w_scr_dish_main_qr_code_over_view *ui;
     lds_model_sqlstandardmodel *standmodel;
