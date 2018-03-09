@@ -96,7 +96,6 @@ private:
     bool sql_isopen;
     //数据库测试
 public:
-    YUN_POLLING_thread *ypolling;
     WX_POLLING_thread *wxpolling;
     w_scr_dish_TECH_TRANS_thread *ttpolling;
     w_bt_dish_kitchen_dish_thread *kitchenpolling;
@@ -123,13 +122,11 @@ public:
     void runStart();
     //厨打5、数据库连接30、中餐刷新10、微信点餐15
     lds_bool_default_false restaurantrun;
-    lds_bool_default_false weixinrun;
     lds_bool_default_false heartrun;
     lds_bool_default_false ogg_polling;
 
 
     int runRestaurantTimeout;
-    int runWeixinTimeout;
     int runKitchenTimeout;
     int runHeartTimeout;
     int runTelBoxTimeout;
@@ -137,7 +134,6 @@ public:
 signals:
     void signalrestaurantupdate();
     void signalrestaurantupdate(int step, int total);
-    void signalweixinupdate();
     void signalkitchenupdate();
     void signalheartbeatupdate();//心跳
     void signalTelBoxupdate();//心跳

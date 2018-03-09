@@ -2996,17 +2996,6 @@ void public_sqlSet::enable_remote_MYSQL_connect()
     lds_messagebox::warning(this, MESSAGE_TITLE_VOID, tr("操作失败")+errstring);
 }
 
-//=============
-YUN_POLLING_thread::YUN_POLLING_thread(QObject *parent):
-    lds_thread("云端轮询", parent)
-{
-}
-void YUN_POLLING_thread::run()
-{
-    YUN_POLLING_threadevent event;
-    execEvent(&event);
-}
-
 
 //===================
 WX_POLLING_thread::WX_POLLING_thread(QObject *parent):
@@ -3024,27 +3013,6 @@ void WX_POLLING_thread::run()
     w_sys_manage_wirelessordermonitoring_wx  wx;
     wx.enableUDP();
     this->exec();
-}
-
-
-YUN_POLLING_threadevent::YUN_POLLING_threadevent(QObject *parent)
-    :lds_thread_event(parent)
-{
-
-}
-
-void YUN_POLLING_threadevent::toExec()
-{
-    QString bdate=n_func::f_get_sysdatetime().toString("yyyy-MM-dd");
-    QString edate=bdate;
-    int flag=0;
-    if(w_sys_manage_cloudsync::get_weixin_orderinfo(public_sql::save_login_object(), bdate, edate, flag)){
-        if(w_sys_manage_cloudsync::get_weixin_orderdish(public_sql::save_login_object(),bdate, edate, flag)){
-            if(w_sys_manage_cloudsync::set_weixin_payforwater(public_sql::save_login_object(), bdate, edate, flag)){
-                return;
-            }
-        }
-    }
 }
 
 void public_sql::OPER_KEY_MODEL_INIT()

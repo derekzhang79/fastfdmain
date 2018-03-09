@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
+    <width>700</width>
     <height>492</height>
    </rect>
   </property>
@@ -119,14 +119,14 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>lds_toolbar_button</class>
-   <extends>QPushButton</extends>
-   <header>lds_toolbar_button.h</header>
-  </customwidget>
-  <customwidget>
    <class>lds_tableView</class>
    <extends>QTableView</extends>
    <header>lds_tableview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>lds_toolbar_button</class>
+   <extends>QPushButton</extends>
+   <header>lds_toolbar_button.h</header>
   </customwidget>
   <customwidget>
    <class>lds_ComboBox</class>

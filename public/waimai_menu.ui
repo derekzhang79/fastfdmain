@@ -6,53 +6,13 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>310</width>
-    <height>210</height>
+    <width>209</width>
+    <height>110</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="lds_pushbutton_wrap" name="pushButton_weixinwaimai">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>110</y>
-     <width>90</width>
-     <height>90</height>
-    </rect>
-   </property>
-   <property name="sizePolicy">
-    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-     <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
-    </sizepolicy>
-   </property>
-   <property name="minimumSize">
-    <size>
-     <width>90</width>
-     <height>90</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>90</width>
-     <height>90</height>
-    </size>
-   </property>
-   <property name="focusPolicy">
-    <enum>Qt::NoFocus</enum>
-   </property>
-   <property name="styleSheet">
-    <string notr="true"/>
-   </property>
-   <property name="text">
-    <string>微信外卖</string>
-   </property>
-   <property name="outer_stylesheet" stdset="0">
-    <string>pushbutton_type</string>
-   </property>
-  </widget>
   <widget class="lds_pushbutton_wrap" name="pushButton_waimai">
    <property name="geometry">
     <rect>
@@ -128,86 +88,6 @@
    </property>
    <property name="text">
     <string>外卖结算</string>
-   </property>
-   <property name="outer_stylesheet" stdset="0">
-    <string>pushbutton_type</string>
-   </property>
-  </widget>
-  <widget class="lds_pushbutton_wrap" name="pushButton_weixinquitbill">
-   <property name="geometry">
-    <rect>
-     <x>210</x>
-     <y>110</y>
-     <width>90</width>
-     <height>90</height>
-    </rect>
-   </property>
-   <property name="sizePolicy">
-    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-     <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
-    </sizepolicy>
-   </property>
-   <property name="minimumSize">
-    <size>
-     <width>90</width>
-     <height>90</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>90</width>
-     <height>90</height>
-    </size>
-   </property>
-   <property name="focusPolicy">
-    <enum>Qt::NoFocus</enum>
-   </property>
-   <property name="styleSheet">
-    <string notr="true"/>
-   </property>
-   <property name="text">
-    <string>微信退单查询</string>
-   </property>
-   <property name="outer_stylesheet" stdset="0">
-    <string>pushbutton_type</string>
-   </property>
-  </widget>
-  <widget class="lds_pushbutton_wrap" name="pushButton_weixinbill_import">
-   <property name="geometry">
-    <rect>
-     <x>110</x>
-     <y>110</y>
-     <width>90</width>
-     <height>90</height>
-    </rect>
-   </property>
-   <property name="sizePolicy">
-    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-     <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
-    </sizepolicy>
-   </property>
-   <property name="minimumSize">
-    <size>
-     <width>90</width>
-     <height>90</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>90</width>
-     <height>90</height>
-    </size>
-   </property>
-   <property name="focusPolicy">
-    <enum>Qt::NoFocus</enum>
-   </property>
-   <property name="styleSheet">
-    <string notr="true"/>
-   </property>
-   <property name="text">
-    <string>微信订单录入</string>
    </property>
    <property name="outer_stylesheet" stdset="0">
     <string>pushbutton_type</string>

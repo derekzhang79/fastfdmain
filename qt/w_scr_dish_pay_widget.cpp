@@ -9,7 +9,6 @@
 #include <QKeyEvent>
 #include "lds_dialog_input.h"
 #include <QProcess>
-#include "w_scr_dish_weixinpay_input.h"
 #include <QHostInfo>
 #include "w_bt_dish.h"
 #include "free_view.h"

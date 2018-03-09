@@ -4,6 +4,8 @@
 Reader_Tel::Reader_Tel(QObject *parent) :
     QObject(parent)
 {
+    Curdev = NULL;//libusb句柄
+    ctx = NULL ;//USB连接
 }
 
 Reader_Tel::~Reader_Tel(){
@@ -15,8 +17,6 @@ bool Reader_Tel::open(QString *errstring){
 
 #ifdef Q_OS_UNIX
     int r;
-    Curdev = NULL;//libusb句柄
-    ctx = NULL ;//USB连接
     isopen=true;
     //1初始化 libusb的初始化，必须最先调用
     if ((r = libusb_init(&ctx)) < 0){//connect usb连接返值小于0表示连接失败
@@ -51,14 +51,19 @@ bool Reader_Tel::open(QString *errstring){
 
 void Reader_Tel::close(){
 #ifdef Q_OS_UNIX
+    mutex.lock();
     if(isopen){
-        mutex.lock();
+        isopen=false;
+    }
+    if(Curdev != NULL) {
         libusb_release_interface(Curdev,0);
         libusb_close(Curdev);
-        libusb_exit(ctx);
-        isopen=false;
-        mutex.unlock();
+        Curdev = NULL;
     }
+    if(ctx != NULL) {
+        libusb_exit(ctx);
+    }
+    mutex.unlock();
 #endif
 }
 
@@ -91,15 +96,15 @@ info_tel Reader_Tel::getTelInfo()
                 tel1.callerName=byte2.mid(2+16*3,16);
                 tel1.callerID = telInfoTrans(tel1.callerID);
 
-//                qDebug() << "datetime:" << tel1.datetime;
-//                qDebug() << "callerID:" << telInfoTrans(tel1.callerID)<<"2";
-//                qDebug() << "selfID:"   << tel1.selfID;
-//                qDebug() << "callerName:"<< tel1.callerName;
+                //                qDebug() << "datetime:" << tel1.datetime;
+                //                qDebug() << "callerID:" << telInfoTrans(tel1.callerID)<<"2";
+                //                qDebug() << "selfID:"   << tel1.selfID;
+                //                qDebug() << "callerName:"<< tel1.callerName;
             } else {//表示为电话按键
                 QString str = QString().append(byte2);
                 QString anJian=telInfoTrans(str);
                 if(!anJian.isEmpty()){
-//                    qDebug() << "正在按键:" << anJian;//转换的话只能转数字 其他键待做
+                    //                    qDebug() << "正在按键:" << anJian;//转换的话只能转数字 其他键待做
                     tel1.errstring = "press digit button";
                     tel1.isvalid = false;
                     return tel1;
@@ -115,10 +120,10 @@ info_tel Reader_Tel::getTelInfo()
                         return tel1;
                     }
 
-//                    qDebug() << "datetime:" << tel1.datetime;
-//                    qDebug() << "callerID:" << telInfoTrans(tel1.callerID)<< "3";
-//                    qDebug() << "selfID:"   << tel1.selfID;
-//                    qDebug() << "callerName:"<< tel1.callerName;
+                    //                    qDebug() << "datetime:" << tel1.datetime;
+                    //                    qDebug() << "callerID:" << telInfoTrans(tel1.callerID)<< "3";
+                    //                    qDebug() << "selfID:"   << tel1.selfID;
+                    //                    qDebug() << "callerName:"<< tel1.callerName;
                 }
             }
         }

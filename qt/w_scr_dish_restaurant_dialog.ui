@@ -360,14 +360,45 @@
   <widget class="QFrame" name="frame">
    <property name="geometry">
     <rect>
-     <x>130</x>
+     <x>60</x>
      <y>410</y>
-     <width>302</width>
-     <height>201</height>
+     <width>401</width>
+     <height>111</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout_2">
-    <item row="0" column="2">
+    <item row="0" column="0">
+     <widget class="QPushButton" name="pushButton_open">
+      <property name="minimumSize">
+       <size>
+        <width>90</width>
+        <height>90</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>90</width>
+        <height>90</height>
+       </size>
+      </property>
+      <property name="focusPolicy">
+       <enum>Qt::NoFocus</enum>
+      </property>
+      <property name="text">
+       <string>开钱箱</string>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>21</width>
+        <height>21</height>
+       </size>
+      </property>
+      <property name="outer_stylesheet" stdset="0">
+       <string>pushbutton_type</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="4">
      <widget class="lds_pushbutton_wrap" name="pushButton_waimaipay">
       <property name="minimumSize">
        <size>
@@ -392,32 +423,7 @@
       </property>
      </widget>
     </item>
-    <item row="0" column="0">
-     <widget class="lds_pushbutton_wrap" name="pushButton_weixinwaimai">
-      <property name="minimumSize">
-       <size>
-        <width>90</width>
-        <height>90</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>90</width>
-        <height>90</height>
-       </size>
-      </property>
-      <property name="focusPolicy">
-       <enum>Qt::NoFocus</enum>
-      </property>
-      <property name="text">
-       <string>微信外卖</string>
-      </property>
-      <property name="outer_stylesheet" stdset="0">
-       <string>pushbutton_type</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1">
+    <item row="0" column="2">
      <widget class="lds_pushbutton_wrap" name="pushButton_lockstate">
       <property name="minimumSize">
        <size>
@@ -442,33 +448,7 @@
       </property>
      </widget>
     </item>
-    <item row="0" column="1">
-     <widget class="lds_pushbutton_wrap" name="pushButton_weixinquitbill">
-      <property name="minimumSize">
-       <size>
-        <width>90</width>
-        <height>90</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>90</width>
-        <height>90</height>
-       </size>
-      </property>
-      <property name="focusPolicy">
-       <enum>Qt::NoFocus</enum>
-      </property>
-      <property name="text">
-       <string>微信
-退单查询</string>
-      </property>
-      <property name="outer_stylesheet" stdset="0">
-       <string>pushbutton_type</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="0">
+    <item row="0" column="3">
      <widget class="QPushButton" name="pushButton_order">
       <property name="minimumSize">
        <size>
@@ -487,37 +467,6 @@
       </property>
       <property name="text">
        <string>预定</string>
-      </property>
-      <property name="iconSize">
-       <size>
-        <width>21</width>
-        <height>21</height>
-       </size>
-      </property>
-      <property name="outer_stylesheet" stdset="0">
-       <string>pushbutton_type</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="2">
-     <widget class="QPushButton" name="pushButton_open">
-      <property name="minimumSize">
-       <size>
-        <width>90</width>
-        <height>90</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>90</width>
-        <height>90</height>
-       </size>
-      </property>
-      <property name="focusPolicy">
-       <enum>Qt::NoFocus</enum>
-      </property>
-      <property name="text">
-       <string>开钱箱</string>
       </property>
       <property name="iconSize">
        <size>

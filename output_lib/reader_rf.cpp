@@ -83,15 +83,19 @@ void Reader_RF::close()
 {
 #ifdef Q_OS_UNIX
 
-    if(isopen){
+    if(Curdev != NULL) {
         libusb_release_interface(Curdev,0);
         libusb_close(Curdev);
-        libusb_free_device_list(devs, 1);
-        libusb_exit(ctx);
-        isopen=false;
+        Curdev = 0;
     }
+    if(devs != NULL) {
+        libusb_free_device_list(devs, 1);
+    }
+    if(ctx != NULL) {
+        libusb_exit(ctx);
+    }
+    isopen=false;
 #endif
-
 }
 
 bool Reader_RF::writecard(const QString &part0, const QString &part1, const QString &part2)

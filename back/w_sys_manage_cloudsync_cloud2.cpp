@@ -104,8 +104,6 @@ void w_sys_manage_cloudsync_cloud2::to_timecheck()
 
 void w_sys_manage_cloudsync_cloud2::to_exit()
 {
-    //不包括验证信息
-    lds::sysconf->setValue("w_sys_manage_cloudsync_with_time/cloud_wx_polling", false);
     this->reject();
 }
 

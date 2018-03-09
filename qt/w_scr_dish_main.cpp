@@ -21,9 +21,6 @@
 #include "fast_qudan.h"
 #include "takeout_cook.h"
 #include "take_cashier.h"
-#include "w_scr_dish_weixinbill_import.h"
-#include "w_scr_dish_weixinwaimai.h"
-#include "w_scr_dish_weixin_quitbill.h"
 #include "business_documents_query.h"
 #include "w_scr_dish_language_switch_set.h"
 #include "w_rpt_report_frame_business_summary.h"
@@ -871,38 +868,6 @@ void w_scr_dish_main::towaimaipay()
     take_cashier cashierdialog(this);
     cashierdialog.setWindowTitle(tr("外卖收银结算"));
     lds_roundeddialog_rect_align(&cashierdialog).exec();
-}
-
-void w_scr_dish_main::toweixinwaimai()
-{
-    w_scr_dish_weixinwaimai dialog(this);
-    dialog.setWindowTitle(tr("微信外卖"));
-    lds_roundeddialog_rect_align(&dialog).exec();
-}
-
-void w_scr_dish_main::toweixinquitbill()
-{
-    w_scr_dish_weixin_quitbill dialog(this);
-    dialog.setWindowTitle(tr("退单查询"));
-    lds_roundeddialog_rect_align(&dialog).exec();
-}
-
-void w_scr_dish_main::toweixinbill_import()
-{
-    w_scr_dish_weixinbill_import dialog(this);
-    dialog.setWindowTitle(tr("微信订单"));
-    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
-        QDateTime dt = n_func::f_get_sysdatetime();
-        lds_query query;
-
-        tablemodel->keepdata_disabled_begin_rowcount();
-        query.execSelect(QString("select b.*, (case b.ch_suitflag when 'Y' then 'P' else 'N' end) as ch_suitflag2, (case b.ch_suitflag when 'Y' then b.ch_dishno else '' end) as ch_suitno, a.number as num_default, c.vch_unitname FROM cey_web_order_dish a, cey_bt_dish b, cey_bt_unit c where  a.dishNo = b.ch_dishno and b.ch_unitno = c.ch_unitno and b.ch_stopflag = 'N' and a.orderSn = '%1' ; ")
-                         .arg(dialog.wdata.sn));
-        while(query.next()){
-            todish_fill_data(query, dt);
-        }
-        tablemodel->keepdata_submit();
-    }
 }
 
 void w_scr_dish_main::tosysyingyedanju()

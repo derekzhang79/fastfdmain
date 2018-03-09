@@ -223,7 +223,9 @@ const QMap<QString, QString>& w_rpt_report_frame::variant_transfer_map()
         map.insert("vch_handle", tr("经手人"));
         map.insert("chg_flag", tr("调整库存"));
         //
-        map.insert("do", tr("操作"));
+        map.insert("do1", tr("操作"));
+        map.insert("do2", tr("操作"));
+        map.insert("do3", tr("操作"));
     }
     return map;
 }

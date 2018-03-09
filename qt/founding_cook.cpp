@@ -171,14 +171,7 @@ void founding_cook::toed_save()
 
 void founding_cook::toed_inputonline()
 {
-    orderSn.clear();
-    bool ok = false;
-    w_scr_dish::WEIXIN_DATA data = w_scr_dish::static_weixinbillimport(this, &ok);
-    if(ok){
-        ui->lineEdit_int_person->setValue(data.eatPels.toDouble());
-        orderSn = data.sn;
-        toed_order();
-    }
+
 }
 
 void founding_cook::toBillDiv(const QModelIndex &index)
@@ -212,29 +205,6 @@ void founding_cook::toIsShowDiv()
 
 void founding_cook::toinlne()
 {
-    if(lds::widgetIsShow(ui->frame_stack2)){
-        //    if(ui->stackedWidget_ed->currentIndex() == 1) {//已开台
-        if(!saveData(false)) {
-            return;
-        }
-    }
-
-
-    orderSn.clear();
-    bool ok = false;
-    w_scr_dish::WEIXIN_DATA data = w_scr_dish::static_weixinbillimport(this, &ok);
-    if(ok){
-        ui->lineEdit_int_person->setValue(data.eatPels.toDouble());
-        orderSn = data.sn;
-        if(lds::widgetIsShow(ui->frame_stack2)){
-            //        if(ui->stackedWidget_ed->currentIndex() == 1) {//已开台
-            this->done(DISH_APPEND);
-        }
-        if(lds::widgetIsShow(ui->frame_stack1)){
-            //        if(ui->stackedWidget_ed->currentIndex() == 0) {//未开台
-            this->done(DISH_ORDER);
-        }
-    }
 }
 
 void founding_cook::toreprint()

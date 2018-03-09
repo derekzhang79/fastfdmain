@@ -79,8 +79,7 @@ void w_m_member_telComing_table::toopen(const QModelIndex &index)
                 modeltable->sql,
                 false, //是否外部强制分单
                 member_from_tel, //电话信息
-                true, //请求是否点单
-                ""
+                true //请求是否点单
                 )) {
         ret_ch_tableno = ch_tableno;
         this->accept();

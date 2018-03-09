@@ -17,16 +17,10 @@ HEADERS += \
     $$PWD/fast_qudan.h \
     $$PWD/bianma_cook.h \
     $$PWD/back_anti_checkout.h \
-    $$PWD/w_scr_dish_weixinwaimai.h \
-    $$PWD/w_scr_dish_weixin_quitbill.h \
-    $$PWD/w_scr_dish_weixin_getbill.h \
     $$PWD/w_scr_dish.h \
     $$PWD/w_scr_dish_data_collection.h \
     $$PWD/w_scr_dish_switch_detail.h \
     $$PWD/w_scr_balance_service.h \
-    $$PWD/w_scr_dish_weixin_paybill.h \
-    $$PWD/w_scr_dish_weixinpay_input.h \
-    $$PWD/w_scr_dish_weixinbill_import.h \
     $$PWD/founding_cook.h \
     $$PWD/table_lock.h \
     $$PWD/linshi_cook.h \
@@ -95,16 +89,10 @@ SOURCES += \
     $$PWD/fast_qudan.cpp \
     $$PWD/bianma_cook.cpp \
     $$PWD/back_anti_checkout.cpp \
-    $$PWD/w_scr_dish_weixinwaimai.cpp \
-    $$PWD/w_scr_dish_weixin_quitbill.cpp \
-    $$PWD/w_scr_dish_weixin_getbill.cpp \
     $$PWD/w_scr_dish.cpp \
     $$PWD/w_scr_dish_data_collection.cpp \
     $$PWD/w_scr_dish_switch_detail.cpp \
     $$PWD/w_scr_balance_service.cpp \
-    $$PWD/w_scr_dish_weixin_paybill.cpp \
-    $$PWD/w_scr_dish_weixinpay_input.cpp \
-    $$PWD/w_scr_dish_weixinbill_import.cpp \
     $$PWD/founding_cook.cpp \
     $$PWD/table_lock.cpp \
     $$PWD/linshi_cook.cpp \
@@ -172,15 +160,10 @@ FORMS += \
     $$PWD/fast_qudan.ui \
     $$PWD/bianma_cook.ui \
     $$PWD/back_anti_checkout.ui \
-    $$PWD/w_scr_dish_weixinwaimai_dialog.ui \
-    $$PWD/w_scr_dish_weixin_quitbill_dialog.ui \
-    $$PWD/w_scr_dish_weixin_getbill_dialog.ui \
     $$PWD/w_scr_dish_special_cook.ui \
     $$PWD/w_scr_dish_data_collection_dialog.ui \
     $$PWD/w_scr_dish_switch_detail.ui\
     $$PWD/w_scr_balance_service.ui \
-    $$PWD/w_scr_dish_weixin_paybill.ui \
-    $$PWD/w_scr_dish_weixinpay_input.ui \
     $$PWD/founding_cook.ui \
     $$PWD/table_lock.ui \
     $$PWD/linshi_cook.ui \

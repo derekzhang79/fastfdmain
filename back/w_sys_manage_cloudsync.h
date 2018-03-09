@@ -535,13 +535,6 @@ public:
     static int check_local_time(QWidget *parent, yunTime &retydt, QString *msg = 0);
 public:
     static bool is_match_local_time;
-public:
-    //! 微信点餐-轮询获取微信订单订桌外卖汇总表
-    static bool get_weixin_orderinfo(QObject *parent,  const QString&beginTime, const QString&endTime, int downFlag);
-    static bool get_weixin_orderdish(QObject *parent, const QString&beginTime, const QString&endTime, int downFlag);
-    static bool set_weixin_payforwater(QObject *parent, const QString&beginTime, const QString&endTime, int downFlag);
-    static bool up_weixin_change_takkeoutstate(QWidget *parent, const QString &sn, const QString &orderState/*11,21,22,25*/, const QString &refuseReason=QString());
-    static bool up_weixin_change_orderstate(QWidget *parent, const QString &sn, const QString &orderState/*11,21,22,25*/, const QString &refuseReason=QString());
 
 private:
     QDialog *dialog;

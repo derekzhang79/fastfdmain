@@ -379,7 +379,7 @@ void waimai_pay::on_pushButton_13_clicked()//买单
         return;
     }
     if(!query.execUpdate("cey_u_orderdish",qrtVariantPairList()
-                          << qrtVariantPair("ch_payno", ch_payno),
+                         << qrtVariantPair("ch_payno", ch_payno),
                          QString("ch_togono = '%1' ").arg(_waimaihao))) {
 
         lds_query::roll_back();
@@ -388,7 +388,7 @@ void waimai_pay::on_pushButton_13_clicked()//买单
     }
 
     if(query.execUpdate("cey_u_togo",qrtVariantPairList()
-                         << qrtVariantPair("ch_payno", ch_payno) << qrtVariantPair("ch_state", "Y"),
+                        << qrtVariantPair("ch_payno", ch_payno) << qrtVariantPair("ch_state", "Y"),
                         qrtEqual("ch_togono", _waimaihao)))
     {
 
@@ -401,32 +401,12 @@ void waimai_pay::on_pushButton_13_clicked()//买单
         return;
     }
 
-    QString waimai_weixin_info;
-
-    query.execSelect(QString("SELECT vch_yun_sn FROM hddpos.cey_u_togo where ch_togono = '%1'; ").arg(_waimaihao));
-    query.next();
-    QString vch_yun_sn = query.recordValue("vch_yun_sn").toString();
-    if(vch_yun_sn.isEmpty()
-            ||(!vch_yun_sn.isEmpty()
-               &&w_sys_manage_cloudsync::up_weixin_change_takkeoutstate(this
-                                                                        ,vch_yun_sn
-                                                                        ,"21"//交易结束-交易成功
-                                                                        )
-               )
-            ){
-        if(!vch_yun_sn.isEmpty()) waimai_weixin_info=(tr("[微信")+tr("交易结束-交易成功!]"));
-        lds_query::com_mit();
-
-        pay_print();
-
-        shifoujiazhang.clear();
-        btn_t_f = true;
-        lds_messagebox::information(this, MESSAGE_TITLE_VOID,tr("外卖交易成功") +waimai_weixin_info);
-        this->close();
-        return;
-    }
-    lds_messagebox::warning(this, MESSAGE_TITLE_VOID,tr("外卖交易失败"));
-    lds_query::roll_back();
+    lds_query::com_mit();
+    pay_print();
+    shifoujiazhang.clear();
+    btn_t_f = true;
+    lds_messagebox::information(this, MESSAGE_TITLE_VOID,tr("外卖交易成功"));
+    this->close();
     return;
 }
 

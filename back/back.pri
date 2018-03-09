@@ -48,7 +48,6 @@ HEADERS += \
     $$PWD/w_sys_manage_businessdataclear.h \
     $$PWD/w_sys_manage_sysset.h \
     $$PWD/w_sys_manage_mysql.h \
-    $$PWD/w_sys_manage_weixin.h \
     $$PWD/w_sys_manage_wirelessordermonitoring.h \
     $$PWD/w_sys_manage_sysreboot.h \
     $$PWD/w_rpt_report.h \
@@ -168,7 +167,6 @@ SOURCES += \
     $$PWD/w_sys_manage_businessdataclear.cpp \
     $$PWD/w_sys_manage_sysset.cpp \
     $$PWD/w_sys_manage_mysql.cpp \
-    $$PWD/w_sys_manage_weixin.cpp \
     $$PWD/w_sys_manage_wirelessordermonitoring.cpp \
     $$PWD/w_sys_manage_sysreboot.cpp \
     $$PWD/w_bt_dish_base.cpp \

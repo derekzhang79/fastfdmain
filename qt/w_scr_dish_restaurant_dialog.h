@@ -44,8 +44,7 @@ public:
                                   const QString &sql ,
                                   bool is_div,
                                   const w_m_member_telComing_table::telComingData &member_from_tel,
-                                  bool isRequestOrder,
-                                  const QString &currentOrderSn
+                                  bool isRequestOrder
                                   );
 public slots:
     void toFirstGoIn();
@@ -68,8 +67,8 @@ protected slots:
     void tobusinessdata_query();
     void topwdchange();
 
-    void totablemessageOrder(const QModelIndex &index, const QString &sql, bool is_div, const QString &currentOrderSn);
-    void totablemessageOrder(const QString &ch_tableno, const QString &sql, bool is_div, const QString &currentOrderSn);
+    void totablemessageOrder(const QModelIndex &index, const QString &sql, bool is_div);
+    void totablemessageOrder(const QString &ch_tableno, const QString &sql, bool is_div);
 
     void totablemessage(const QModelIndex &index);
     void totablemessage(const QString &ch_tableno);
@@ -79,8 +78,6 @@ protected slots:
     void toswitchback();//后台
 
     void to_waimaipay();
-    void to_weixinwaimai();
-    void to_weixinquitbill();
 
     void topreprint(const QString &ch_tableno);//
     void topreorder();//预订

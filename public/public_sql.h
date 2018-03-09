@@ -213,26 +213,6 @@ private:
     Ui_public_sqlset_Dialog *ui;
 };
 
-//================================
-class YUN_POLLING_threadevent : public lds_thread_event{
-    Q_OBJECT
-public:
-    YUN_POLLING_threadevent(QObject *parent = 0);
-    //from lds_thread_event
-public slots:
-    virtual void toExec();
-};
-
-//=================================
-class YUN_POLLING_thread:public lds_thread
-{
-    Q_OBJECT
-public:
-    YUN_POLLING_thread(QObject *parent = 0);
-protected:
-    virtual void run();
-};
-
 //============================
 class WX_POLLING_thread:public lds_thread
 {

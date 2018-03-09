@@ -5,9 +5,6 @@
 #include "qtsoap.h"
 #include <QSqlError>
 #include "frontviewdialog_virtual.h"
-#include "w_scr_dish_weixinbill_import.h"
-#include "w_scr_dish_weixin_quitbill.h"
-#include "w_scr_dish_weixinwaimai.h"
 #include "take_cashier.h"
 #include "lds_messagebox.h"
 #include "lds.h"
@@ -408,80 +405,6 @@ void w_scr_dish::static_waimaipay(QWidget *parent)
     take_cashier cashierdialog(parent);
     cashierdialog.setWindowTitle(tr("外卖收银结算"));
     lds_roundeddialog_rect_align(&cashierdialog).exec();
-}
-
-void w_scr_dish::static_weixinwaimai(QWidget *parent)
-{
-    //请在点菜界面判断有菜品信息
-    w_scr_dish_weixinwaimai dialog(parent);
-    dialog.setWindowTitle(tr("微信外卖"));
-    lds_roundeddialog_rect_align(&dialog).exec();
-
-}
-
-void w_scr_dish::static_weixinquitbill(QWidget *parent)
-{
-    w_scr_dish_weixin_quitbill dialog(parent);
-    dialog.setWindowTitle(tr("退单查询"));
-    lds_roundeddialog_rect_align(&dialog).exec();
-}
-
-w_scr_dish::WEIXIN_DATA w_scr_dish::static_weixinbillimport(QWidget *parent, bool *ok)
-{
-    //前台有点菜信息
-    *ok = false;
-    w_scr_dish_weixinbill_import dialog(parent);
-    dialog.setWindowTitle(tr("微信订单"));
-    if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()){
-        *ok = true;
-    }
-    goto end;
-end:
-    return dialog.wdata;
-}
-
-void w_scr_dish::static_weixinPrintbillBySn(const QString &title, const QString &sn)
-{
-    int columnwidth = 16;
-    lds_query query;
-    blockIns printins;
-    query.execSelect(QString("select * from cey_web_order_info where sn = '%1' ")
-                     .arg(sn));
-    query.next();
-    
-    printins.append(backheader::printer.drawText("a00,s11", title+"\n","a10,s00"));
-    printins.append(backheader::printer.drawText("", tr("单号")+":"+sn , columnwidth, Qt::AlignLeft));
-    printins.append(backheader::printer.drawText("", tr("预定人")+":"+query.recordValue("orderer").toString(), columnwidth, Qt::AlignLeft));
-    printins.append(backheader::printer.drawText("", "\n"));
-    printins.append(backheader::printer.drawText("", tr("订餐时间")+":"+query.recordValue("eatTime").toDateTime().toString("yyyy-MM-dd hh:mm:ss")+"\n"));
-    printins.append(backheader::printer.drawText("", tr("餐区编号")+":"+query.recordValue("tableAreaNo").toString(), columnwidth, Qt::AlignLeft));
-    printins.append(backheader::printer.drawText("", tr("餐桌编号")+":"+query.recordValue("eatTableNo").toString(), columnwidth, Qt::AlignLeft));
-    printins.append(backheader::printer.drawText("", "\n"));
-    printins.append(backheader::printer.drawText("", tr("就餐人数")+":"+query.recordValue("eatPels").toString(), columnwidth, Qt::AlignLeft));
-    printins.append(backheader::printer.drawText("", "\n"));
-
-    printins.append(backheader::printer.drawText("", tr("支付方式")+":"+(query.recordValue("payType").toString()=="0"?tr("当面支付"):tr("在线支付"))+"\n"));
-    printins.append(backheader::printer.drawText("", tr("支付状态")+":"+(query.recordValue("payState").toString()=="0"?tr("未支付"):tr("已支付"))+"\n"));
-    printins.append(backheader::printer.drawText("", tr("订单方式")+":"+w_scr_dish_weixinwaimai::getweixinorderTypename(query.recordValue("orderType").toString())+"\n"));
-    printins.append(backheader::printer.drawText("", tr("订单状态")+":"+w_scr_dish_weixinwaimai::getweixinorderStatename(query.recordValue("orderState").toString())+"\n"));
-    printins.append(backheader::printer.drawText("-"));
-
-    printins.append(backheader::printer.drawText("", tr("订单详细") +"\n"));
-    printins.append(backheader::printer.drawText("", "   "+tr("菜品名称"), columnwidth, Qt::AlignLeft));
-    printins.append(backheader::printer.drawText("", "   "+tr("菜品数量"), columnwidth, Qt::AlignLeft));
-    printins.append(backheader::printer.drawText("", "\n"));
-
-    query.execSelect(QString("select dishName, number  from cey_web_order_dish where orderSn = '%1' ")
-                     .arg(sn));
-    while(query.next()){
-        printins.append(backheader::printer.drawText("", "   "+query.recordValue("dishName").toString(), columnwidth, Qt::AlignLeft));
-        printins.append(backheader::printer.drawText("", "   "+query.recordValue("number").toString(), columnwidth, Qt::AlignLeft));
-        printins.append(backheader::printer.drawText("", "\n"));
-    }
-    
-
-    printins.append(backheader::printer.drawTextEnd("1B6405 1D5601", ""));//走纸5x， 切纸
-    backheader::asyn_dataprint(printins);
 }
 
 int w_scr_dish::XIEXIN_BUSINESS_DATA_UPLOAD(const QDate &date, QString *errstring)

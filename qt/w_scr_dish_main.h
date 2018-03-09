@@ -79,9 +79,6 @@ protected slots:
     void toMRead();
     void towaimai();
     void towaimaipay();
-    void toweixinwaimai();
-    void toweixinquitbill();
-    void toweixinbill_import();
 
     void tosysyingyedanju();
     void toLanguageSwitch();

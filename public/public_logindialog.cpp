@@ -68,7 +68,6 @@ public_loginDialog::public_loginDialog(QWidget *parent) :
     ui->setupUi(this);
     lds::setwflagFrameless(this);
     sql_heart_beat = 0;
-    ypolling = 0;
     wxpolling = 0;
     ttpolling = 0;
     kitchenpolling = 0;
@@ -232,7 +231,7 @@ void public_loginDialog::togoto_back()
     QString errlogin=toTryLogin();
     if(errlogin.isEmpty()){
         goto_back();
-    }else {
+    } else {
         updateinfo(errlogin);
     }
 }
@@ -297,12 +296,7 @@ void public_loginDialog::connectdb_init(lds_messagebox_loading_show *loading)
     public_sql::display_led.setType(lds::sysconf->value("system_setting/kexianleixing").toString());
     public_sql::display_led.startShowinfo(lds::sysconf->value("system_setting/kexian_vfd_start").toString(),
                                           lds::sysconf->value("system_setting/kexianduankou").toString());
-    //微信轮询读取云端数据，但是不会启用
-    ypolling = new  YUN_POLLING_thread(this);
-    //    QObject().moveToThread(ypolling);
-    ypolling->start();
-    ypolling->waitForStarted();
-    connect(this,SIGNAL(signalweixinupdate()),ypolling,SLOT(emitsignalTrigger()));
+
     //!微信轮询读取云端数据
     //无线点菜机
     wxpolling = new WX_POLLING_thread(this);
@@ -366,10 +360,6 @@ void public_loginDialog::connectdb_init(lds_messagebox_loading_show *loading)
     connect(this,SIGNAL(signalkitchenupdate()),this,SLOT(to_everytime_to_print_failed_kitchen_bill()));
     connect(this,SIGNAL(signalTelBoxupdate()),tel_box_polling,SLOT(emitsignalTrigger()));
 
-    //微信轮询读取云端数据
-    if(lds::sysconf->value("w_sys_manage_cloudsync_with_time/cloud_wx_polling", false).toBool()){
-        weixinrun = true;
-    }
     //!微信轮询读取云端数据
     goto end;
     lds_messagebox::warning(this, MESSAGE_TITLE_VOID, tr("连接云端失败"));
@@ -843,7 +833,6 @@ void public_loginDialog::runStart()
 
     //厨打5、数据库连接30、中餐刷新10、微信点餐15
     runRestaurantTimeout = 10;
-    runWeixinTimeout = 15;
     runKitchenTimeout = 5;
     runHeartTimeout = 30;
     runTelBoxTimeout = 3;
@@ -883,19 +872,10 @@ void public_loginDialog::runFrameupdate()
         emit signalrestaurantupdate(value, runRestaurantTimeout);
     }
 
-
     //厨打
     value = runstep%(runKitchenTimeout+1);
     if(value == runKitchenTimeout){
         emit signalkitchenupdate();
-    }
-
-    //微信轮询
-    if(weixinrun){
-        value = runstep%(runWeixinTimeout+1);
-        if(value == runWeixinTimeout){
-            emit signalweixinupdate();
-        }
     }
 
     //数据库心跳
@@ -903,6 +883,7 @@ void public_loginDialog::runFrameupdate()
     if(value == runHeartTimeout) {
         emit signalheartbeatupdate();
     }
+
 
     //电话盒子
     value = runstep % (runTelBoxTimeout + 1);

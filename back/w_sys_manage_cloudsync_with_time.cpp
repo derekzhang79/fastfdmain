@@ -49,7 +49,6 @@ w_sys_manage_cloudsync_with_time::w_sys_manage_cloudsync_with_time(QWidget *pare
     ui->checkBox_isyunrun->setChecked(lds::sysconf->value("w_sys_manage_cloudsync_with_time/cloud_yun_is_run", false).toBool());
     ui->checkBox_yun_member->setChecked(lds::sysconf->value("w_sys_manage_cloudsync_with_time/cloud_yun_member", false).toBool());
     ui->checkBox_yun_member_2->setChecked(lds::sysconf->value("w_sys_manage_cloudsync_with_time/cloud_no_use_local_member", false).toBool());
-    ui->checkBox_yun_wxpolling->setChecked(lds::sysconf->value("w_sys_manage_cloudsync_with_time/cloud_wx_polling", false).toBool());
 
     connect(ui->pushButton_upload, SIGNAL(clicked()),this,SLOT(toupload()));
     connect(ui->pushButton_exit, SIGNAL(clicked()),this,SLOT(toexit()));
@@ -220,7 +219,6 @@ void w_sys_manage_cloudsync_with_time::saveData()
     lds::sysconf->setValue("w_sys_manage_cloudsync_with_time/cloud_yun_is_run", ui->checkBox_isyunrun->isChecked());
     lds::sysconf->setValue("w_sys_manage_cloudsync_with_time/cloud_yun_member", ui->checkBox_yun_member->isChecked());
     lds::sysconf->setValue("w_sys_manage_cloudsync_with_time/cloud_no_use_local_member", ui->checkBox_yun_member_2->isChecked());
-    lds::sysconf->setValue("w_sys_manage_cloudsync_with_time/cloud_wx_polling", ui->checkBox_yun_wxpolling->isChecked());
 }
 
 //=================================

@@ -36,16 +36,6 @@
        </property>
       </widget>
      </item>
-     <item row="3" column="4">
-      <widget class="QCheckBox" name="checkBox_yun_wxpolling">
-       <property name="styleSheet">
-        <string notr="true">font:12pt;</string>
-       </property>
-       <property name="text">
-        <string>开启微信轮询</string>
-       </property>
-      </widget>
-     </item>
      <item row="2" column="4">
       <widget class="QCheckBox" name="checkBox_yun_member_2">
        <property name="styleSheet">

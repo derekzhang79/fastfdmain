@@ -159,30 +159,9 @@ tendercode 付款方式代号解释:CH----现金   CI----国内银行   CO----�
             );
     static int HUARUN_BUSINESS_DATA_UPLOAD(const QString &ftp, const QString &usr, const QString &pwd,
                                          const QList<HUARUN_BUSINESS_DATA> &datalist);
-    //ftp营业数据上传
-    struct WEIXIN_DATA{
-        QString address;
-        QString eatPels;
-        QString eatTableNo;
-        QString eatTime;
-
-        QString orderer;
-        QString orderState;
-        QString orderType;
-        QString payState;
-
-        QString payType;
-        QString sn;
-        QString tableAreaNo;
-        QString tel;
-    };
     static bool ftp_download(const QUrl &url);
 
     static void static_waimaipay(QWidget *parent);
-    static void static_weixinwaimai(QWidget *parent);
-    static void static_weixinquitbill(QWidget *parent);
-    static WEIXIN_DATA static_weixinbillimport(QWidget *parent, bool *ok = 0);
-    static void static_weixinPrintbillBySn(const QString &title, const QString &sn);
 
     ///协信营业数据上传: 0 失败 1 成功 2没有营业数据
     static int XIEXIN_BUSINESS_DATA_UPLOAD(const QDate &date, QString *errstring);

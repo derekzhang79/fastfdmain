@@ -152,9 +152,6 @@ void w_scr_dish_main_view_800x600::loadData()
         connect(ui->pushButton_member,SIGNAL(clicked()),this,SLOT(toMRead()));
         connect(ui->frame_dish_bottom2, SIGNAL(signal_waimai()),this,SLOT(towaimai()));
         connect(ui->frame_dish_bottom2, SIGNAL(signal_waimaipay()),this,SLOT(towaimaipay()));
-        connect(ui->frame_dish_bottom2, SIGNAL(signal_weixinwaimai()),this,SLOT(toweixinwaimai()));
-        connect(ui->frame_dish_bottom2, SIGNAL(signal_weixinquitbill()),this,SLOT(toweixinquitbill()));
-        connect(ui->frame_dish_bottom2, SIGNAL(signal_weixinbill_import()),this,SLOT(toweixinbill_import()));
         connect(ui->pushButton_wine, SIGNAL(clicked()), this, SLOT(toWine()));
         connect(ui->frame_dish_bottom2->desk, SIGNAL(clicked()), this, SLOT(toRestaurant()));
         connect(ui->frame_dish_bottom2->waidai, SIGNAL(clicked()), this, SLOT(toWaiDai()));

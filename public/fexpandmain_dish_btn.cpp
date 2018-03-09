@@ -115,9 +115,6 @@ void fexpandmain_dish_btn::toInitWaimaiMenuAndShow()
         w->setFixedSize(w->size());
         connect(ui->pushButton_waimai, SIGNAL(clicked()),this, SIGNAL(signal_waimai()));
         connect(ui->pushButton_waimaipay, SIGNAL(clicked()),this, SIGNAL(signal_waimaipay()));
-        connect(ui->pushButton_weixinwaimai, SIGNAL(clicked()),this, SIGNAL(signal_weixinwaimai()));
-        connect(ui->pushButton_weixinquitbill, SIGNAL(clicked()),this, SIGNAL(signal_weixinquitbill()));
-        connect(ui->pushButton_weixinbill_import, SIGNAL(clicked()),this, SIGNAL(signal_weixinbill_import()));
 
         QWidgetAction *widgetaction=new QWidgetAction(waimai);
         widgetaction->setDefaultWidget(w);

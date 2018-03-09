@@ -25,12 +25,12 @@ takeout_cook::takeout_cook(const fexpandmain_model_sqltablemodel_data *tablemode
     this->ch_tableno = ch_tableno;
     //1
     ui->lineEdit->setEnabled(false);
-//    ui->lineEdit_consum->setReadOnly(true);
-//    ui->lineEdit_discount->setReadOnly(true);
-//    ui->lineEdit_int_rate->setReadOnly(true);
-//    ui->lineEdit_present->setReadOnly(true);
-//    ui->lineEdit_blotout->setReadOnly(true);
-//    ui->lineEdit_realreceive->setReadOnly(true);
+    //    ui->lineEdit_consum->setReadOnly(true);
+    //    ui->lineEdit_discount->setReadOnly(true);
+    //    ui->lineEdit_int_rate->setReadOnly(true);
+    //    ui->lineEdit_present->setReadOnly(true);
+    //    ui->lineEdit_blotout->setReadOnly(true);
+    //    ui->lineEdit_realreceive->setReadOnly(true);
 
     ui->lineEdit_sendman->setEnabled(false);
     ui->lineEdit_operid->setEnabled(false);
@@ -63,12 +63,6 @@ takeout_cook::~takeout_cook()
 
 void takeout_cook::took()
 {
-    QString weixinwaimai_info;
-    bool isyun_waimai=false;
-    QString weixin_sn = ui->label_sn->text();
-    //01->12
-    if(!weixin_sn.isEmpty()) isyun_waimai = true;
-
     if(ui->lineEdit_tel->text().trimmed().isEmpty()) {
         lds_messagebox::warning(this, MESSAGE_TITLE_VOID, ui->label_tel->text() + "," + tr("信息不完整,请核实"));
         return;
@@ -163,29 +157,20 @@ void takeout_cook::took()
                              << qrtVariantPair("ch_state", "N")
                              << qrtVariantPair("vch_operID", public_sql::gs_operid)
                              << qrtVariantPair("dt_operdate", ui->lineEdit_sendtime->text())
-                             << qrtVariantPair("vch_yun_sn", weixin_sn)
                              )) {
             goto rollback;
         }
     }
     //01->12
-    if(!isyun_waimai
-            || (isyun_waimai
-                &&w_sys_manage_cloudsync::up_weixin_change_takkeoutstate(this
-                                                                         ,weixin_sn
-                                                                         ,"12"//已受理-已制作派送
-                                                                         ))){
-        lds_query::com_mit();
-        if(isyun_waimai) weixinwaimai_info=tr("[微信外卖]");
-        {
-            public_printby_ch_billno printer(_tablemodel->cur_ch_billno());
-            printer.toprintwaimai(printer.defpath());
-            public_printby_ch_billno::print_label(_tablemodel->cur_ch_billno());
-        }
-        lds_messagebox::information(this, MESSAGE_TITLE_VOID,tr("外卖已制作派送")+weixinwaimai_info);
-        this->accept();
-        return;
+    lds_query::com_mit();
+    {
+        public_printby_ch_billno printer(_tablemodel->cur_ch_billno());
+        printer.toprintwaimai(printer.defpath());
+        public_printby_ch_billno::print_label(_tablemodel->cur_ch_billno());
     }
+    lds_messagebox::information(this, MESSAGE_TITLE_VOID,tr("外卖已制作派送"));
+    this->accept();
+    return;
 rollback:
     lds_query::roll_back();
     lds_messagebox::warning(this, MESSAGE_TITLE_VOID,tr("外卖制作派送失败"));

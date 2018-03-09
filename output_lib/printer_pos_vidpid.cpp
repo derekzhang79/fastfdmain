@@ -6,6 +6,10 @@
 Printer_POS_VIDPID::Printer_POS_VIDPID() :
     isopen(false)
 {
+    dev_handle = NULL;//usb
+    devs = NULL;//usb list
+    ctx = NULL;//usb context
+
     //    scanall();
 #ifdef QT_DEBUG
     QList<vidpid_Data>  dlist = get_vidpid_print_type_list();
@@ -67,15 +71,17 @@ bool Printer_POS_VIDPID::tryOpen(const QString &port)
 
 void Printer_POS_VIDPID::close()
 {
-    if(isopen) {
 #ifdef Q_OS_UNIX
+    if(dev_handle != NULL) {
         libusb_release_interface(dev_handle,0);
         libusb_close(dev_handle); //close the device we opened
         dev_handle = 0;
-        libusb_exit(ctx); //needs to be called to end the
-#endif
-        isopen=false;
     }
+    if(ctx != NULL) {
+        libusb_exit(ctx); //needs to be called to end the
+    }
+#endif
+    isopen=false;
 }
 
 QString Printer_POS_VIDPID::lastError()

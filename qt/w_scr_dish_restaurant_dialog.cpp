@@ -123,8 +123,6 @@ w_scr_dish_restaurant_dialog::w_scr_dish_restaurant_dialog(QWidget *parent) :
     connect(ui->pushButton_exit, SIGNAL(clicked()),this,SLOT(toexit()));
     //
     connect(ui->pushButton_waimaipay,SIGNAL(clicked()),this,SLOT(to_waimaipay()));
-    connect(ui->pushButton_weixinwaimai,SIGNAL(clicked()),this,SLOT(to_weixinwaimai()));
-    connect(ui->pushButton_weixinquitbill,SIGNAL(clicked()),this,SLOT(to_weixinquitbill()));
 
     connect(ui->pushButton_lockstate,SIGNAL(clicked()),this,SLOT(tolockstate()));
     connect(ui->pushButton_open,SIGNAL(clicked()),this,SLOT(toopencash()));
@@ -204,7 +202,7 @@ void w_scr_dish_restaurant_dialog::retranslateView()
     ui->tableView_ch_areano->m->refreshcur();
 }
 
-bool w_scr_dish_restaurant_dialog::tablemessageOrder(QWidget *parent, const QString &ch_tableno, const QString &sql, bool is_div, const w_m_member_telComing_table::telComingData &member_from_tel, bool isRequestOrder, const QString &currentOrderSn)
+bool w_scr_dish_restaurant_dialog::tablemessageOrder(QWidget *parent, const QString &ch_tableno, const QString &sql, bool is_div, const w_m_member_telComing_table::telComingData &member_from_tel, bool isRequestOrder)
 {
     w_scr_dish_main_qr_code::QrCodeMasterList qr_code_order_list;
     w_scr_dish_main_qr_code::QrCodePay qr_code_pay_data;
@@ -280,11 +278,13 @@ bool w_scr_dish_restaurant_dialog::tablemessageOrder(QWidget *parent, const QStr
                     lds_query::selectValue(QString(" select vch_qr_code_sn from cey_u_table where ch_billno = '%1' ").arg(ch_billno)).toString(),
                     qr_code_pay_data)) {
             if(w_scr_dish_main_qr_code::qr_code_bill_do_pay_transaction(ch_tableno, ch_billno, qr_code_pay_data, errstring)) {
-                lds_messagebox::information(parent, MESSAGE_TITLE_VOID, tr("二维码点单") + "\n" + tr("本单已支付") + "\n" +
+                lds_messagebox::information(parent, MESSAGE_TITLE_VOID, tr("二维码点单") + "\n" +
+                                            tr("本单已支付") + "\n" +
                                             tr("餐桌") + ":" +ch_tableno+ "\n"  +
                                             tr("总计") + ":" + QString().sprintf("%.02f", qr_code_pay_data.mount) + "\n"  +
                                             tr("支付宝") + ":" + QString().sprintf("%.02f", qr_code_pay_data.alipay) + "\n"  +
-                                            tr("微信") + ":" + QString().sprintf("%.02f", qr_code_pay_data.wechatpay));
+                                            tr("微信") + ":" + QString().sprintf("%.02f", qr_code_pay_data.wechatpay)
+                                            );
                 return true;
             }
             lds_messagebox::warning(parent, MESSAGE_TITLE_VOID, errstring);
@@ -317,7 +317,7 @@ bool w_scr_dish_restaurant_dialog::tablemessageOrder(QWidget *parent, const QStr
             if(1 == lds_messagebox::question(parent, MESSAGE_TITLE_VOID, tr("有订单未处理, 是否导入"), tr("是"), tr("否"))) {
                 goto end;
             }
-            w_scr_dish_main_qr_code dialog(ch_tableno, qr_code_order_list, currentOrderSn, parent);
+            w_scr_dish_main_qr_code dialog(ch_tableno, qr_code_order_list, parent);
             if(QDialog::Accepted == lds_roundeddialog_rect_align(&dialog).exec()) {
                 return true;
             }
@@ -477,13 +477,6 @@ void w_scr_dish_restaurant_dialog::toFirstGoIn()
         widgetaction->setDefaultWidget(ui->frame);
         menu->addAction(widgetaction);
         ui->pushButton_other->setMenu(menu);
-    }
-
-    //    connect(modeltable, SIGNAL(signalFinished()), this, SLOT(toupdate_section_by_map()));
-
-    if(lds::get_soft_curent_language_first() == "EN") {
-        ui->pushButton_weixinquitbill->setEnabled(false);
-        ui->pushButton_weixinwaimai->setEnabled(false);
     }
     ui->pushButton_language->initKeys_conf();
 
@@ -863,21 +856,20 @@ void w_scr_dish_restaurant_dialog::topwdchange()
     lds_roundeddialog_rect_align(&password).exec();
 }
 
-void w_scr_dish_restaurant_dialog::totablemessageOrder(const QModelIndex &index, const QString &sql, bool is_div, const QString &currentOrderSn)
+void w_scr_dish_restaurant_dialog::totablemessageOrder(const QModelIndex &index, const QString &sql, bool is_div)
 {
     QString ch_tableno = modeltable->data(index, Qt::UserRole + 1).toString();
-    totablemessageOrder(ch_tableno, sql, is_div, currentOrderSn);
+    totablemessageOrder(ch_tableno, sql, is_div);
 }
 
-void w_scr_dish_restaurant_dialog::totablemessageOrder(const QString &ch_tableno, const QString &sql, bool is_div, const QString &currentOrderSn)
+void w_scr_dish_restaurant_dialog::totablemessageOrder(const QString &ch_tableno, const QString &sql, bool is_div)
 {
     tablemessageOrder(this,
                       ch_tableno,
                       sql,
                       is_div, //是否外部强制分单
                       w_m_member_telComing_table::telComingData(), //电话信息
-                      false,//请求是否点单
-                      currentOrderSn
+                      false//请求是否点单
                       );
 }
 
@@ -895,7 +887,7 @@ void w_scr_dish_restaurant_dialog::totablemessage(const QString &ch_tableno)
     }
 
     if(is_list()) {//直接进入点单界面
-        totablemessageOrder(ch_tableno, modeltable->sql, false, "");
+        totablemessageOrder(ch_tableno, modeltable->sql, false);
         torefresh_data();
         return;
     }
@@ -922,7 +914,7 @@ void w_scr_dish_restaurant_dialog::totablemessage(const QString &ch_tableno)
 
     //
     if(!table_opera_when_btn_is_down(ch_tableno)) {//直接进入点单界面
-        totablemessageOrder(ch_tableno, modeltable->sql, false, "");
+        totablemessageOrder(ch_tableno, modeltable->sql, false);
         torefresh_data();
     }
 }
@@ -1169,7 +1161,7 @@ bool w_scr_dish_restaurant_dialog::table_opera_when_btn_is_down(const QString &c
     } else if(ui->pushButton_dish_transfer == d.rb()) {//菜品转台
         todishtransfer(ch_tableno);
     } else if(ui->pushButton_div == d.rb()) {//分单
-        totablemessageOrder(ch_tableno, modeltable->sql, true, "");
+        totablemessageOrder(ch_tableno, modeltable->sql, true);
         torefresh_data();
     } else {
         return false;
@@ -1205,16 +1197,6 @@ void w_scr_dish_restaurant_dialog::toswitchback()
 void w_scr_dish_restaurant_dialog::to_waimaipay()
 {
     w_scr_dish::static_waimaipay(this);
-}
-
-void w_scr_dish_restaurant_dialog::to_weixinwaimai()
-{
-    w_scr_dish::static_weixinwaimai(this);
-}
-
-void w_scr_dish_restaurant_dialog::to_weixinquitbill()
-{
-    w_scr_dish::static_weixinquitbill(this);
 }
 
 void w_scr_dish_restaurant_dialog::topreprint(const QString &ch_tableno)
@@ -1893,13 +1875,8 @@ void w_scr_dish_restaurant_dialog::toqr_code_order_over_view()
     }
     w_scr_dish_main_qr_code_over_view dialog(this);
     if(public_sql::GoRestaurantOrder == lds_roundeddialog_rect_align(&dialog).exec()) {
-        totablemessageOrder(dialog.order_ch_tableno(), //餐桌
-                            modeltable->sql, //
-                            false, //isRequestOrder
-                            dialog.order_sn()//当前sn
-                            );
-        torefresh_data();
     }
+    torefresh_data();
 }
 
 void w_scr_dish_restaurant_dialog::closeEvent(QCloseEvent *e)

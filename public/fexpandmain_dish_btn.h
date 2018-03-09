@@ -26,9 +26,6 @@ public:
 signals:
    void signal_waimai();
    void signal_waimaipay();
-   void signal_weixinwaimai();
-   void signal_weixinquitbill();
-   void signal_weixinbill_import();
 
 private slots:
     void toUpdaeEnabledFromScrollBar();
